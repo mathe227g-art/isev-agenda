@@ -1,0 +1,55 @@
+import { PGlite } from '@electric-sql/pglite';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
+import { readFileSync, readdirSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const db = new PGlite({ extensions: { btree_gist } });
+await db.exec(`create role authenticated; create role anon; create role service_role bypassrls;
+  create schema auth; create table auth.users(id uuid primary key);
+  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.actor',true),'')::uuid$$;
+  grant usage on schema public,auth to authenticated,anon,service_role;
+  insert into auth.users values ('00000000-0000-0000-0000-000000000011'),('00000000-0000-0000-0000-000000000012'),('00000000-0000-0000-0000-000000000013');`);
+const dir = new URL('../supabase/migrations/', import.meta.url);
+for (const name of readdirSync(dir).filter(n => n.endsWith('.sql')).sort()) await db.exec(readFileSync(new URL(name, dir), 'utf8'));
+await db.exec(readFileSync(new URL('202609230005_security.sql', dir), 'utf8'));
+const ownerA='00000000-0000-0000-0000-000000000011', ownerB='00000000-0000-0000-0000-000000000012', staff='00000000-0000-0000-0000-000000000013';
+async function actor(user) { await db.exec(`reset role;set test.actor='${user}';set role authenticated;`); }
+await actor(ownerA); const a=(await db.query("select create_company('Alpha','alpha') id")).rows[0].id;
+await actor(ownerB); await db.query("select create_company('Beta','beta') id");
+await db.exec(`reset role;insert into company_members values('${a}','${staff}','staff');`);
+await actor(ownerA);
+const service=(await db.query(`insert into services(company_id,name,duration_minutes,price) values('${a}','Corte',30,50) returning id`)).rows[0].id;
+const prof=(await db.query(`insert into professionals(company_id,name) values('${a}','Ana') returning id`)).rows[0].id;
+await db.exec(`insert into working_hours(company_id,professional_id,weekday,start_time,end_time) select '${a}','${prof}',n,'08:00','18:00' from generate_series(0,6) n;
+insert into company_appearance(company_id) values('${a}');`);
+await actor(ownerB);
+for (const table of ['customers','bookings','professionals','services','working_hours','company_appearance']) {
+  assert.equal((await db.query(`select * from ${table} where company_id='${a}'`)).rows.length,0);
+}
+await assert.rejects(db.exec(`insert into customers(company_id,name) values('${a}','Intruso')`),/row-level security/);
+assert.equal((await db.query(`update services set price=1 where company_id='${a}' returning id`)).rows.length,0);
+await actor(staff);
+assert.equal((await db.query('select * from services')).rows.length,1);
+await assert.rejects(db.exec(`insert into services(company_id,name,duration_minutes) values('${a}','Proibido',30)`),/row-level security/);
+assert.equal((await db.query(`update company_appearance set theme='dark' where company_id='${a}' returning company_id`)).rows.length,0);
+await assert.rejects(db.exec(`update company_members set role='owner' where user_id='${staff}'`),/permission denied/);
+await db.exec(`insert into customers(company_id,name) values('${a}','Cliente da equipe')`);
+await db.exec('reset role;set role anon;');
+for (const table of ['customers','bookings','company_members','company_appearance']) await assert.rejects(db.query(`select * from ${table}`),/permission denied/);
+const date=(await db.query("select ((now() at time zone 'America/Sao_Paulo')::date+1)::text as date_value")).rows[0].date_value;
+const slots=(await db.query(`select * from booking_slots('alpha','${service}','${prof}','${date}')`)).rows;
+assert(slots.length>6);
+const call=(slot,phone='11999999999')=>`select book_public('alpha','${service}','${prof}','${new Date(slot.starts_at).toISOString()}','Teste','${phone}',null) data`;
+await assert.rejects(db.query(call(slots[0])),/permission denied/);
+await actor(ownerA); await assert.rejects(db.query(call(slots[0])),/permission denied/);
+await db.exec('reset role;set role service_role');
+let first;
+for(let i=0;i<5;i++) { const result=await db.query(call(slots[i])); if(!i) first=result.rows[0].data; }
+await assert.rejects(db.query(call(slots[5])),/Limite de reservas/);
+await assert.rejects(db.query(call(slots[0],'11888888888')),/Horário indisponível/);
+await db.exec('reset role;set role anon');
+assert.equal((await db.query(`select cancel_public('${first.cancel_token}') ok`)).rows[0].ok,true);
+assert.equal((await db.query(`select cancel_public('${first.cancel_token}') ok`)).rows[0].ok,false);
+await actor(ownerB); assert.equal((await db.query('select * from bookings')).rows.length,0);
+await actor(ownerA); assert.equal((await db.query('select * from bookings')).rows.length,5);
+await db.close();
+console.log('SQL 001–005: isolamento entre empresas, staff/proprietário, escalada negada, reserva direta negada, limite, colisão e cancelamento único validados.');

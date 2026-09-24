@@ -11,13 +11,12 @@ import {
   dateKey,
   daySegments,
   entityColor,
-  foreground,
   formatDay,
   movePeriod,
   periodBounds,
 } from "@/lib/planning.mjs";
 const statuses: Record<string, string> = {
-  confirmed: "Confirmado",
+  confirmed: "Pendente",
   completed: "Concluído",
   cancelled: "Cancelado",
   no_show: "Não compareceu",
@@ -25,7 +24,6 @@ const statuses: Record<string, string> = {
 export function AgendaCalendar({
   bookings,
   people,
-  services,
   appearance,
   timezone,
   onStatus,
@@ -41,9 +39,8 @@ export function AgendaCalendar({
 }) {
   const [date, setDate] = useState(() => dateKey(new Date(), timezone)),
     [view, setView] = useState("Semana"),
-    [colorBy, setColorBy] = useState("professional"),
     [person, setPerson] = useState(""),
-    [includeCancelled, setIncludeCancelled] = useState(false),
+    [includeCancelled, setIncludeCancelled] = useState(true),
     [detail, setDetail] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
   const [start] = periodBounds(date, view),
@@ -70,13 +67,33 @@ export function AgendaCalendar({
       24,
       Math.max(19, ...all.map((s) => Math.ceil(s.end / 60))),
     );
-  const hourHeight = 76,
+  const hourHeight = 160,
     gridHeight = (lastHour - firstHour) * hourHeight;
   const current = bookings.find((b) => b.id === detail);
-  function color(b: Booking) {
-    return colorBy === "professional"
-      ? entityColor(b.professional_id, appearance.professional_colors)
-      : entityColor(b.service_id, appearance.service_colors);
+  function names(b: Booking) {
+    return (
+      <>
+        <span className="event-entity">
+          <i
+            style={{
+              background: entityColor(
+                b.professional_id,
+                appearance.professional_colors,
+              ),
+            }}
+          />
+          {b.professionals?.name || "Profissional"}
+        </span>
+        <span className="event-entity">
+          <i
+            style={{
+              background: entityColor(b.service_id, appearance.service_colors),
+            }}
+          />
+          {b.services?.name || "Serviço"}
+        </span>
+      </>
+    );
   }
   async function status(value: string) {
     if (!current || busy) return;
@@ -145,13 +162,6 @@ export function AgendaCalendar({
             ))}
           </select>
         </label>
-        <label>
-          Cores por
-          <select value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
-            <option value="professional">Profissional</option>
-            <option value="service">Serviço</option>
-          </select>
-        </label>
         <label className="check-label">
           <input
             type="checkbox"
@@ -162,20 +172,11 @@ export function AgendaCalendar({
         </label>
         <span className="calendar-zone">{timezone}</span>
       </div>
-      <div className="calendar-legend">
-        {(colorBy === "professional" ? people : services).map((item) => (
-          <span key={item.id}>
-            <i
-              style={{
-                background: entityColor(
-                  item.id,
-                  colorBy === "professional"
-                    ? appearance.professional_colors
-                    : appearance.service_colors,
-                ),
-              }}
-            />
-            {item.name}
+      <div className="calendar-legend" aria-label="Legenda de situação">
+        {Object.entries(statuses).map(([status, label]) => (
+          <span key={status}>
+            <i className={`legend-status-${status}`} />
+            {label}
           </span>
         ))}
       </div>
@@ -206,12 +207,10 @@ export function AgendaCalendar({
                   <button
                     key={b.id}
                     className={`month-booking calendar-status-${b.status}`}
-                    style={{ borderLeftColor: color(b) }}
                     onClick={() => setDetail(b.id)}
                     title={`${clockTime(b.starts_at, timezone)} · ${b.customers?.name} · ${b.services?.name} · ${b.professionals?.name}`}
                   >
-                    <span>{clockTime(b.starts_at, timezone)}</span>
-                    <strong>{b.customers?.name || "Cliente"}</strong>
+                    {names(b)}
                   </button>
                 ))}
                 {segments[index].length > 3 && (
@@ -265,16 +264,16 @@ export function AgendaCalendar({
             </div>
             {dates.map((d, index) => (
               <div key={d} className="time-day" style={{ height: gridHeight }}>
-                {Array.from({ length: (lastHour - firstHour) * 2 }, (_, i) => {
-                  const mins = firstHour * 60 + i * 30,
-                    value = `${d}T${String(Math.floor(mins / 60)).padStart(2, "0")}:${mins % 60 ? "30" : "00"}`;
+                {Array.from({ length: (lastHour - firstHour) * 4 }, (_, i) => {
+                  const mins = firstHour * 60 + i * 15,
+                    value = `${d}T${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
                   return (
                     <button
                       key={i}
                       className="time-slot"
                       style={{
-                        top: (i * hourHeight) / 2,
-                        height: hourHeight / 2,
+                        top: (i * hourHeight) / 4,
+                        height: hourHeight / 4,
                       }}
                       aria-label={`Novo agendamento ${formatDay(d)} às ${value.slice(-5)}`}
                       onClick={() => onCreate(value)}
@@ -290,28 +289,16 @@ export function AgendaCalendar({
                       style={{
                         top: ((start - firstHour * 60) / 60) * hourHeight,
                         height: Math.max(
-                          10,
+                          34,
                           ((end - start) / 60) * hourHeight - 2,
                         ),
                         left: `calc(${(lane / lanes) * 100}% + 3px)`,
                         width: `calc(${100 / lanes}% - 6px)`,
-                        background: color(b),
-                        color: foreground(color(b)),
                       }}
                       aria-label={`${clockTime(b.starts_at, timezone)} ${b.customers?.name}, ${b.services?.name}, ${b.professionals?.name}, ${statuses[b.status]}`}
                       title={`${clockTime(b.starts_at, timezone)}–${clockTime(b.ends_at, timezone)} · ${b.customers?.name} · ${b.services?.name} · ${b.professionals?.name} · ${statuses[b.status]}`}
                     >
-                      <span>
-                        {clockTime(b.starts_at, timezone)}–
-                        {clockTime(b.ends_at, timezone)}{" "}
-                        {b.status === "completed" ? "✓" : ""}
-                      </span>
-                      <strong>{b.customers?.name || "Cliente"}</strong>
-                      {end - start >= 45 && (
-                        <small>
-                          {b.services?.name} · {b.professionals?.name}
-                        </small>
-                      )}
+                      {names(b)}
                     </button>
                   ),
                 )}

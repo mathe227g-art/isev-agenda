@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Availability } from "@/components/availability";
+import { TimePicker, quarterHours } from "@/components/time-picker";
+import { dateKey } from "@/lib/planning.mjs";
 import { InstallApp } from "@/components/install-app";
 import { observeIdentity } from "@/lib/session.mjs";
 import type { Company, Person, Service, Booking } from "@/lib/models";
@@ -83,7 +86,7 @@ const descriptions: Record<string, string> = {
   Configurações: "Sua marca e seu estilo em cada detalhe.",
 };
 const statuses: Record<string, string> = {
-  confirmed: "Confirmado",
+  confirmed: "Pendente",
   completed: "Concluído",
   cancelled: "Cancelado",
   no_show: "Não compareceu",
@@ -119,6 +122,16 @@ export default function Home() {
   const [page, setPage] = useState("Visão geral"),
     [dialog, setDialog] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const [editing, setEditing] = useState<
+    (Customer & Partial<Service & Person>) | null
+  >(null);
+  const [deleting, setDeleting] = useState<{
+    table: string;
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [dataLoading, setDataLoading] = useState(true);
   const {
@@ -130,6 +143,7 @@ export default function Home() {
   } = useAppearance(company?.id);
   useCompanyTheme(appearance);
   function openBooking(value = "") {
+    setEditing(null);
     setBookingStart(value);
     setDialog("booking");
   }
@@ -303,17 +317,28 @@ export default function Home() {
         <SidebarContent>
           <p className="nav-caption">PRINCIPAL</p>
           <SidebarMenu className="nav-list">
-            {nav.filter(item => isOwner || !["Serviços", "Profissionais", "Disponibilidade", "Configurações"].includes(item.label)).map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  isActive={page === item.label}
-                  onClick={() => setPage(item.label)}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {nav
+              .filter(
+                (item) =>
+                  isOwner ||
+                  ![
+                    "Serviços",
+                    "Profissionais",
+                    "Disponibilidade",
+                    "Configurações",
+                  ].includes(item.label),
+              )
+              .map((item) => (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton
+                    isActive={page === item.label}
+                    onClick={() => setPage(item.label)}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="side-foot">
@@ -497,14 +522,29 @@ export default function Home() {
                 c.phone || "—",
                 c.email || "—",
               ])}
-              add={() => setDialog("customer")}
+              add={() => {
+                setEditing(null);
+                setDialog("customer");
+              }}
+              edit={(i) => {
+                setEditing(customers[i]);
+                setDialog("customer");
+              }}
+              remove={(i) => {
+                setDeleteError("");
+                setDeleting({
+                  table: "customers",
+                  id: customers[i].id,
+                  name: customers[i].name,
+                });
+              }}
             />
           )}
           {isOwner && page === "Serviços" && (
             <>
               <Directory
                 title="Serviços"
-                columns={["Serviço", "Duração", "Preço"]}
+                columns={["Serviço", "Duração", "Preço", "Situação"]}
                 rows={services.map((s) => [
                   s.name,
                   `${s.duration_minutes} min`,
@@ -514,8 +554,24 @@ export default function Home() {
                         style: "currency",
                         currency: "BRL",
                       }),
+                  s.active ? "Ativo" : "Inativo",
                 ])}
-                add={() => setDialog("service")}
+                add={() => {
+                  setEditing(null);
+                  setDialog("service");
+                }}
+                edit={(i) => {
+                  setEditing({ phone: null, email: null, ...services[i] });
+                  setDialog("service");
+                }}
+                remove={(i) => {
+                  setDeleteError("");
+                  setDeleting({
+                    table: "services",
+                    id: services[i].id,
+                    name: services[i].name,
+                  });
+                }}
               />
               <EntityColors
                 items={services}
@@ -536,7 +592,22 @@ export default function Home() {
                   p.name,
                   p.active ? "Ativo" : "Inativo",
                 ])}
-                add={() => setDialog("professional")}
+                add={() => {
+                  setEditing(null);
+                  setDialog("professional");
+                }}
+                edit={(i) => {
+                  setEditing({ phone: null, email: null, ...people[i] });
+                  setDialog("professional");
+                }}
+                remove={(i) => {
+                  setDeleteError("");
+                  setDeleting({
+                    table: "professionals",
+                    id: people[i].id,
+                    name: people[i].name,
+                  });
+                }}
               />
               <EntityColors
                 items={people}
@@ -590,7 +661,8 @@ export default function Home() {
         </div>
       </SidebarInset>
       <CreateDialog
-        key={dialog ?? "closed"}
+        key={`${dialog}-${editing?.id ?? "new"}`}
+        editing={editing}
         initialDate={bookingStart}
         kind={dialog}
         setKind={setDialog}
@@ -600,6 +672,74 @@ export default function Home() {
         customers={customers}
         onSaved={reload}
       />
+      <Dialog
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open && !deleteBusy) setDeleting(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir cadastro?</DialogTitle>
+          </DialogHeader>
+          <p>
+            Excluir <strong>{deleting?.name}</strong>? Esta ação não pode ser
+            desfeita. Cadastros com agendamentos vinculados são preservados.
+          </p>
+          {deleteError && (
+            <p className="form-message" role="alert">
+              {deleteError}
+            </p>
+          )}
+          <div className="directory-actions">
+            <Button
+              variant="outline"
+              disabled={deleteBusy}
+              onClick={() => setDeleting(null)}
+            >
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteBusy}
+              onClick={async () => {
+                if (!deleting || deleteBusy) return;
+                setDeleteBusy(true);
+                setDeleteError("");
+                try {
+                  const { data, error } = await db
+                    .from(deleting.table)
+                    .delete()
+                    .eq("company_id", company.id)
+                    .eq("id", deleting.id)
+                    .select("id");
+                  if (error)
+                    setDeleteError(
+                      error.code === "23503"
+                        ? "Este cadastro possui agendamentos e não pode ser excluído. Serviços e profissionais podem ser desativados em Editar."
+                        : "Não foi possível excluir. Confira as permissões e tente novamente.",
+                    );
+                  else if (!data?.length)
+                    setDeleteError(
+                      "Cadastro não encontrado ou sem permissão para excluir.",
+                    );
+                  else {
+                    setDeleting(null);
+                    toast.success("Cadastro excluído");
+                    reload();
+                  }
+                } catch {
+                  setDeleteError("Falha de conexão. Tente novamente.");
+                } finally {
+                  setDeleteBusy(false);
+                }
+              }}
+            >
+              {deleteBusy ? "Excluindo..." : "Excluir cadastro"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Toaster richColors />
     </SidebarProvider>
   );
@@ -676,11 +816,15 @@ function Directory({
   columns,
   rows,
   add,
+  edit,
+  remove,
 }: {
   title: string;
   columns: string[];
   rows: string[][];
   add: () => void;
+  edit: (index: number) => void;
+  remove: (index: number) => void;
 }) {
   return (
     <div className="panel">
@@ -703,6 +847,7 @@ function Directory({
                 {columns.map((c) => (
                   <th key={c}>{c}</th>
                 ))}
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -711,6 +856,24 @@ function Directory({
                   {row.map((cell, j) => (
                     <td key={j}>{cell}</td>
                   ))}
+                  <td>
+                    <div className="directory-actions">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => edit(i)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(i)}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -768,11 +931,15 @@ function Auth() {
         options: { redirectTo: location.origin },
       });
       if (error) {
-        setMessage("Não foi possível iniciar o login com Google. Tente novamente.");
+        setMessage(
+          "Não foi possível iniciar o login com Google. Tente novamente.",
+        );
         setBusy(false);
       }
     } catch {
-      setMessage("Não foi possível conectar ao Google. Confira sua conexão e tente novamente.");
+      setMessage(
+        "Não foi possível conectar ao Google. Confira sua conexão e tente novamente.",
+      );
       setBusy(false);
     }
   }
@@ -948,6 +1115,7 @@ function Onboarding({ user, onReady }: { user: User; onReady: () => void }) {
   );
 }
 function CreateDialog({
+  editing,
   initialDate,
   kind,
   setKind,
@@ -957,6 +1125,7 @@ function CreateDialog({
   customers,
   onSaved,
 }: {
+  editing: (Customer & Partial<Service & Person>) | null;
   initialDate: string;
   kind: string | null;
   setKind: (v: string | null) => void;
@@ -975,27 +1144,51 @@ function CreateDialog({
     try {
       const f = new FormData(e.currentTarget);
       let result: { error: { message: string } | null };
-      if (kind === "professional")
-        result = await db
-          .from("professionals")
-          .insert({ company_id: company.id, name: String(f.get("name")) });
-      else if (kind === "service")
-        result = await db.from("services").insert({
-          company_id: company.id,
-          name: String(f.get("name")),
-          duration_minutes: Number(f.get("duration")),
-          price: f.get("price") ? Number(f.get("price")) : null,
-        });
-      else if (kind === "customer")
-        result = await db.from("customers").insert({
-          company_id: company.id,
-          name: String(f.get("name")),
-          phone: String(f.get("phone")) || null,
-          email: String(f.get("email")) || null,
-        });
-      else {
+      if (kind !== "booking") {
+        const table =
+          kind === "professional"
+            ? "professionals"
+            : kind === "service"
+              ? "services"
+              : "customers";
+        const values = {
+          name: String(f.get("name")).trim(),
+          ...(kind === "customer"
+            ? {
+                phone: String(f.get("phone")).trim() || null,
+                email: String(f.get("email")).trim() || null,
+              }
+            : { active: f.get("active") !== "false" }),
+          ...(kind === "service"
+            ? {
+                duration_minutes: Number(f.get("duration")),
+                price: f.get("price") ? Number(f.get("price")) : null,
+              }
+            : {}),
+        };
+        const response = editing
+          ? await db
+              .from(table)
+              .update(values)
+              .eq("company_id", company.id)
+              .eq("id", editing.id)
+              .select("id")
+          : await db
+              .from(table)
+              .insert({ company_id: company.id, ...values })
+              .select("id");
+        result = {
+          error:
+            response.error ||
+            (!response.data?.length
+              ? { message: "Não foi possível salvar este cadastro." }
+              : null),
+        };
+      } else {
+        if (!quarterHours.includes(String(f.get("time"))))
+          throw new Error("Escolha um horário de 15 em 15 minutos.");
         const start = zonedInstant(
-          String(f.get("starts_at")),
+          `${f.get("date")}T${f.get("time")}`,
           company.timezone,
         );
         const duration =
@@ -1017,9 +1210,11 @@ function CreateDialog({
         setKind(null);
         onSaved();
       }
-    } catch {
+    } catch (error) {
       setMessage(
-        "Não foi possível salvar. Confira os dados e tente novamente.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar. Confira os dados e tente novamente.",
       );
     } finally {
       setBusy(false);
@@ -1029,7 +1224,7 @@ function CreateDialog({
     <Dialog
       open={!!kind}
       onOpenChange={(open) => {
-        if (!open) {
+        if (!open && !busy) {
           setKind(null);
           setMessage("");
         }
@@ -1038,31 +1233,48 @@ function CreateDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {kind === "booking"
-              ? "Novo agendamento"
-              : kind === "customer"
-                ? "Adicionar cliente"
-                : kind === "service"
-                  ? "Adicionar serviço"
-                  : "Adicionar profissional"}
+            {editing
+              ? `Editar ${kind === "customer" ? "cliente" : kind === "service" ? "serviço" : "profissional"}`
+              : kind === "booking"
+                ? "Novo agendamento"
+                : kind === "customer"
+                  ? "Adicionar cliente"
+                  : kind === "service"
+                    ? "Adicionar serviço"
+                    : "Adicionar profissional"}
           </DialogTitle>
         </DialogHeader>
         <form className="dialog-form" onSubmit={save}>
           {kind !== "booking" && (
             <label>
               Nome
-              <Input name="name" required autoFocus />
+              <Input
+                name="name"
+                required
+                minLength={2}
+                maxLength={120}
+                autoFocus
+                defaultValue={editing?.name}
+              />
             </label>
           )}
           {kind === "customer" && (
             <>
               <label>
                 Telefone
-                <Input name="phone" type="tel" />
+                <Input
+                  name="phone"
+                  type="tel"
+                  defaultValue={editing?.phone ?? ""}
+                />
               </label>
               <label>
                 E-mail
-                <Input name="email" type="email" />
+                <Input
+                  name="email"
+                  type="email"
+                  defaultValue={editing?.email ?? ""}
+                />
               </label>
             </>
           )}
@@ -1075,15 +1287,33 @@ function CreateDialog({
                   type="number"
                   min="5"
                   max="1440"
-                  defaultValue="30"
+                  defaultValue={editing?.duration_minutes ?? 30}
                   required
                 />
               </label>
               <label>
                 Preço (R$)
-                <Input name="price" type="number" min="0" step="0.01" />
+                <Input
+                  name="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={editing?.price ?? ""}
+                />
               </label>
             </>
+          )}
+          {(kind === "service" || kind === "professional") && (
+            <label>
+              Situação
+              <select
+                name="active"
+                defaultValue={String(editing?.active ?? true)}
+              >
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
+              </select>
+            </label>
           )}
           {kind === "booking" && (
             <>
@@ -1124,15 +1354,28 @@ function CreateDialog({
                     ))}
                 </select>
               </label>
-              <label>
-                Data e hora ({company.timezone})
-                <Input
-                  name="starts_at"
-                  type="datetime-local"
-                  required
-                  defaultValue={initialDate}
-                />
-              </label>
+              <div className="two-fields">
+                <label>
+                  Data
+                  <Input
+                    name="date"
+                    type="date"
+                    required
+                    defaultValue={
+                      initialDate.slice(0, 10) ||
+                      dateKey(new Date(), company.timezone)
+                    }
+                  />
+                </label>
+                <label>
+                  Horário
+                  <TimePicker
+                    name="time"
+                    defaultValue={initialDate.slice(11, 16) || "09:00"}
+                  />
+                </label>
+              </div>
+              <small>Horários de 15 em 15 minutos · {company.timezone}</small>
               <p className="muted">
                 Cadastre cliente, serviço e profissional antes de agendar.
               </p>
@@ -1147,165 +1390,5 @@ function CreateDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-function Availability({
-  company,
-  people,
-}: {
-  company: Company;
-  people: Person[];
-}) {
-  const [person, setPerson] = useState(""),
-    [hours, setHours] = useState<
-      { id: string; weekday: number; start_time: string; end_time: string }[]
-    >([]),
-    [blocks, setBlocks] = useState<
-      { id: string; starts_at: string; reason: string | null }[]
-    >([]),
-    [update, setUpdate] = useState(0);
-  useEffect(() => {
-    if (!person) return;
-    db.from("working_hours")
-      .select("id,weekday,start_time,end_time")
-      .eq("professional_id", person)
-      .eq("company_id", company.id)
-      .then(({ data }) => setHours(data || []));
-    db.from("time_blocks")
-      .select("id,starts_at,reason")
-      .eq("professional_id", person)
-      .eq("company_id", company.id)
-      .then(({ data }) => setBlocks(data || []));
-  }, [person, company.id, update]);
-  async function add(
-    e: React.FormEvent<HTMLFormElement>,
-    type: "hours" | "block",
-  ) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    if (
-      String(f.get(type === "hours" ? "start" : "from")) >=
-      String(f.get(type === "hours" ? "end" : "to"))
-    ) {
-      toast.error("O horário final deve ser depois do início.");
-      return;
-    }
-    const result =
-      type === "hours"
-        ? await db.from("working_hours").insert({
-            company_id: company.id,
-            professional_id: person,
-            weekday: Number(f.get("weekday")),
-            start_time: f.get("start"),
-            end_time: f.get("end"),
-          })
-        : await db.from("time_blocks").insert({
-            company_id: company.id,
-            professional_id: person,
-            starts_at: zonedInstant(
-              String(f.get("from")),
-              company.timezone,
-            ).toISOString(),
-            ends_at: zonedInstant(
-              String(f.get("to")),
-              company.timezone,
-            ).toISOString(),
-            reason: f.get("reason") || null,
-          });
-    if (result.error) toast.error(result.error.message);
-    else {
-      toast.success("Disponibilidade salva");
-      setUpdate((x) => x + 1);
-    }
-  }
-  return (
-    <div className="panel simple-panel">
-      <h2>Horários e folgas</h2>
-      <p>Selecione um profissional para definir seus horários.</p>
-      <label>
-        Profissional
-        <select value={person} onChange={(e) => setPerson(e.target.value)}>
-          <option value="">Selecione</option>
-          {people
-            .filter((p) => p.active)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      {person && (
-        <div className="availability-grid">
-          <section>
-            <h3>Horários de trabalho</h3>
-            <form className="dialog-form" onSubmit={(e) => add(e, "hours")}>
-              <label>
-                Dia da semana
-                <select name="weekday">
-                  {[
-                    "Domingo",
-                    "Segunda",
-                    "Terça",
-                    "Quarta",
-                    "Quinta",
-                    "Sexta",
-                    "Sábado",
-                  ].map((d, i) => (
-                    <option value={i} key={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="two-fields">
-                <label>
-                  Início
-                  <Input name="start" type="time" required />
-                </label>
-                <label>
-                  Fim
-                  <Input name="end" type="time" required />
-                </label>
-              </div>
-              <Button>Adicionar horário</Button>
-            </form>
-            <ul className="compact-list">
-              {hours.map((h) => (
-                <li key={h.id}>
-                  {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][h.weekday]}{" "}
-                  · {h.start_time.slice(0, 5)} às {h.end_time.slice(0, 5)}
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section>
-            <h3>Bloqueios e folgas</h3>
-            <form className="dialog-form" onSubmit={(e) => add(e, "block")}>
-              <label>
-                De
-                <Input name="from" type="datetime-local" required />
-              </label>
-              <label>
-                Até
-                <Input name="to" type="datetime-local" required />
-              </label>
-              <label>
-                Motivo
-                <Input name="reason" placeholder="Opcional" />
-              </label>
-              <Button variant="outline">Bloquear período</Button>
-            </form>
-            <ul className="compact-list">
-              {blocks.map((b) => (
-                <li key={b.id}>
-                  {shortDate(b.starts_at)} · {b.reason || "Indisponível"}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-      )}
-    </div>
   );
 }

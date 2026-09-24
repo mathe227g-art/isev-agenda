@@ -254,6 +254,37 @@ assert.equal(
   0,
 );
 assert.equal((await db.query("select * from bookings")).rows.length, 5);
+const deletionId = (await db.query("select id from bookings limit 1")).rows[0]
+  .id;
+await actor(ownerB);
+assert.equal(
+  (await db.query(`delete from bookings where id='${deletionId}' returning id`))
+    .rows.length,
+  0,
+);
+await db.exec("reset role; set role anon");
+await assert.rejects(
+  db.query(`delete from bookings where id='${deletionId}'`),
+  /permission denied/,
+);
+await actor(ownerA);
+await db.query(
+  `update bookings set status='completed' where id='${deletionId}'`,
+);
+assert.equal(
+  (await db.query(`delete from bookings where id='${deletionId}' returning id`))
+    .rows.length,
+  1,
+);
+assert.equal((await db.query("select * from bookings")).rows.length, 4);
+assert.equal(
+  (await db.query(`select id from customers where id='${bookedCustomer}'`)).rows
+    .length,
+  1,
+);
+console.log(
+  "Exclusão de agendamentos: empresa autorizada, outra empresa e anônimo bloqueados; cadastro preservado.",
+);
 await db.close();
 console.log(
   "Gestão: exclusão protegida, autorização da jornada, rollback, almoço e folgas validados.",

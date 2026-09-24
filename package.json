@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test-dates.mjs && node scripts/test-planning.mjs && node scripts/test-migration.mjs && node scripts/test-session.mjs && node scripts/test-pwa.mjs && node scripts/test-security.mjs && node scripts/test-public-booking.mjs && node scripts/test-availability.mjs"
+    "test": "node scripts/test-dates.mjs && node scripts/test-planning.mjs && node scripts/test-migration.mjs && node scripts/test-session.mjs && node scripts/test-pwa.mjs && node scripts/test-security.mjs && node scripts/test-public-booking.mjs && node scripts/test-availability.mjs && node scripts/test-mobile-agenda.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

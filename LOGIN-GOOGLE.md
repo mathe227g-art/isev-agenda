@@ -1,26 +1,26 @@
-# Login com Google — configurado para teste local
+# Login Google — domínio publicado
 
-Configurado e testado em 23/09/2026.
+Site: https://isevagenda.vercel.app
 
-- Projeto Google Cloud: iSev Agenda, ID `thematic-scene-509623-f3`.
-- Cliente OAuth: aplicativo web, nome `iSev Agenda — Web local`.
-- Origem autorizada: `http://127.0.0.1:3017`.
+## Configuração realizada
+
+- Projeto Supabase: iSev Agenda (`qfvaqgibefwpeyaowwxe`).
+- Site URL e retorno permitido: `https://isevagenda.vercel.app`.
+- Retornos locais preservados: `http://127.0.0.1:3017` e `http://localhost:3000/**`.
+- Projeto Google Cloud: iSev Agenda (`thematic-scene-509623-f3`).
+- Cliente OAuth web: `iSev Agenda — Web local`.
+- Origem JavaScript cadastrada anteriormente: `http://127.0.0.1:3017`; não foi alterada nesta correção.
 - Callback Google → Supabase: `https://qfvaqgibefwpeyaowwxe.supabase.co/auth/v1/callback`.
-- Provedor Google ativado no projeto Supabase iSev Agenda. Client ID e Client Secret cadastrados diretamente no painel; segredo não incluído neste pacote nem no frontend.
-- Site URL e retorno permitido no Supabase: `http://127.0.0.1:3017`. O retorno de desenvolvimento antigo `http://localhost:3000/**` foi preservado.
-- Conta administradora adicionada como usuária de teste. Aplicativo Google em modo **Testando**, sem publicação para todos os usuários.
-- Confirmação de e-mail permanece habilitada; login anônimo e opções de ignorar nonce/aceitar usuário sem e-mail permanecem desabilitados.
+- Provedor Google habilitado; segredo cadastrado diretamente no Supabase, nunca neste pacote.
 
-## Validação realizada
+## Validação
 
-Saída local → botão Google → escolha da conta administradora → consentimento de nome/foto/e-mail → retorno ao aplicativo → mesma empresa e dados existentes. Não foram criados clientes nem agendamentos para testar o login.
+O login Google retornou ao domínio publicado, carregou o painel da empresa com os estilos corretos e manteve a sessão ao reabrir o site. O problema anterior era o retorno ao endereço local do computador.
 
-O botão também trata falhas de rede sem ficar preso no estado de carregamento. Lint e build passaram.
+A correção do redirecionamento foi feita no painel do Supabase. Ela não é aplicada por um ZIP ou deploy; ao usar outro projeto Supabase ou domínio, configure novamente essas URLs.
 
-## Antes da publicação
+## Pendências
 
-Atualizar a origem autorizada do cliente Google, Site URL e lista exata de retornos do Supabase para o domínio HTTPS definitivo. Concluir branding/domínios/links exigidos pelo Google e a publicação/verificação aplicável. Enquanto estiver em modo de testes, adicionar explicitamente as demais contas que precisarão testar. O endereço local não funciona como site público para clientes.
+O aplicativo Google foi configurado em modo de testes. A liberação para outras contas e os requisitos de publicação/verificação do Google ainda precisam ser revisados antes da entrega. O CAPTCHA e as variáveis do agendamento público são configurações separadas: veja VERCEL.md e SEGURANCA.md.
 
-O login Google não ativa o CAPTCHA de reservas públicas. As variáveis de Turnstile e do servidor continuam sendo uma configuração separada, descrita em SEGURANCA.md.
-
-[Configuração oficial do Supabase](https://supabase.com/docs/guides/auth/social-login/auth-google)
+Documentação: https://supabase.com/docs/guides/auth/social-login/auth-google

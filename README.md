@@ -6,11 +6,19 @@ Esta versão inclui correções de segurança. Siga primeiro `SEGURANCA.md`: con
 
 A 005 foi validada em PostgreSQL isolado e aplicada ao projeto Supabase iSev Agenda em 23/09/2026. Sem as variáveis de segurança, o novo formulário público não aceita reservas. Os agendamentos existentes são preservados.
 
+## Atualização de agenda e cadastros
+
+- Novo agendamento: data de hoje no fuso da empresa, editável, e horário separado em intervalos de 15 minutos.
+- Clientes, serviços e profissionais: editar e excluir. Cadastros com agendamentos vinculados não podem ser apagados; serviços e profissionais podem ser desativados.
+- Disponibilidade: folgas semanais, jornada com intervalo de almoço e bloqueios temporários em seções separadas. A semana é salva em uma transação; agendamentos existentes não são cancelados ao mudar a rotina.
+- Migração `20260924002842_schedule_management.sql` já aplicada ao projeto iSev Agenda. Não é necessário executá-la novamente nesse banco. Em outra instalação, aplique-a depois das migrações anteriores.
+- As alterações deste pacote ainda precisam ser enviadas ao GitHub para entrar no site da Vercel.
+
 ## O que mudou
 
 - Agenda em calendário: Dia e Semana com grade de horários; Mês com blocos por dia.
 - Clique em um espaço livre para abrir o agendamento com data e hora preenchidas. Clique em um atendimento para ver detalhes e atualizar a situação.
-- Filtro por profissional; alternância entre cores de profissionais e serviços; opção de mostrar cancelados.
+- Filtro por profissional; fundo por situação (amarelo/verde/vermelho/laranja), com marcadores separados das cores de profissional e serviço. Cancelados visíveis por padrão.
 - Atendimentos simultâneos dividem o espaço em colunas, e os que atravessam meia-noite aparecem nos dois dias.
 - Logo e nome da empresa em destaque abaixo da iSev Agenda, no painel e na página pública.
 - Configurações com logo PNG/JPG/WebP (até 2 MB e 4096 × 4096), qualquer cor hexadecimal e modos claro/escuro. A logo é armazenada no registro visual da empresa; não exige configurar um bucket adicional.
@@ -29,7 +37,7 @@ Este módulo resume o valor dos serviços concluídos. Não é controle de receb
 
 ## Executar localmente
 
-Requisitos: Node.js 22.13+ e npm.
+Requisitos: Node.js 24.x e npm.
 
 ```sh
 npm ci
@@ -40,7 +48,7 @@ Abra http://127.0.0.1:3000. Para outra porta: `npm run dev -- --port 3018`.
 
 Em desenvolvimento, `/demonstracao` permite experimentar calendário, financeiro, upload de logo e tema com dados fictícios. As mudanças nessa rota ficam apenas em memória e não chamam o banco. A rota responde 404 em produção.
 
-O projeto usa Next.js diretamente. As dependências, configurações, scripts e exemplos antigos de Vite/Cloudflare/D1 foram removidos. O pacote usa npm e package-lock.json. Publicação em uma hospedagem Cloudflare anterior exige adaptação própria; esta revisão não publicou um site online.
+O projeto usa Next.js diretamente. As dependências, configurações, scripts e exemplos antigos de Vite/Cloudflare/D1 foram removidos. O pacote usa npm e package-lock.json. Publicação em uma hospedagem Cloudflare anterior exige adaptação própria; a versão atual foi publicada na Vercel em https://isevagenda.vercel.app.
 
 ## Supabase
 
@@ -48,7 +56,7 @@ O projeto original está configurado em `lib/supabase.ts` com sua chave publicá
 
 A RPC pública de identidade retorna apenas logo, tema e cor. Ela não expõe clientes, membros ou configurações privadas de cores por entidade.
 
-Login Google configurado e testado para http://127.0.0.1:3017; veja LOGIN-GOOGLE.md. A publicação no domínio definitivo exige atualizar os retornos e o modo de testes no Google.
+Login Google testado em https://isevagenda.vercel.app, com Site URL e retorno permitido atualizados no Supabase. Veja LOGIN-GOOGLE.md para as limitações e configurações externas.
 
 ## Testes
 
@@ -60,7 +68,7 @@ npm test
 
 Os testes cobrem datas, períodos e fusos, agrupamento por serviço, preços históricos, cancelados/faltas, preços ausentes ou zero, sobreposição de horários, transição de meia-noite e contraste. O teste SQL roda em PostgreSQL isolado, sem conexão com o banco real, e valida a migração, reaplicação, RLS, captura de preços e identidade pública.
 
-A interface foi conferida no navegador em modo claro, escuro e largura móvel de 390px. Foram testados os filtros diário/mensal, detalhes de atendimento, exclusão de cancelado do total financeiro e upload/aplicação/remoção da logo em demonstração. A validação autenticada no banco real depende da execução do SQL 004 e de uma conta da empresa.
+A interface foi conferida no navegador em modo claro, escuro e largura móvel de 390px. Foram testados os filtros diário/mensal, detalhes de atendimento, exclusão de cancelado do total financeiro e upload/aplicação/remoção da logo em demonstração. O login Google e a restauração da sessão foram verificados no domínio publicado com a conta administradora; isso não substitui a validação completa dos fluxos de produção.
 
 ## Limites atuais
 

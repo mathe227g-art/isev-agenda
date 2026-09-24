@@ -51,3 +51,9 @@ Referências: [validação Turnstile no servidor](https://developers.cloudflare.
 - Advisors consultados novamente: os alertas de extensão pública, função interna pública e reserva pública direta foram removidos. Permanecem avisos de funções SECURITY DEFINER intencionalmente acessíveis (catálogo, horários, identidade visual, cancelamento por token, criação de empresa autenticada e consultas de vínculo). Esses avisos foram revisados, não são uma aprovação automática nem foram simplesmente ocultados.
 - O Advisor confirmou proteção de senhas vazadas desativada. Ainda é necessário configurar no painel, conforme a disponibilidade do plano: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 - CAPTCHA, chaves privadas do servidor e domínio não configurados: reservas públicas continuam bloqueadas. O painel autenticado mantém as permissões operacionais.
+
+## Atualização de gestão (v9)
+
+A migração schedule_management foi aplicada ao projeto iSev Agenda. A função save_working_week é SECURITY INVOKER, exige proprietário, respeita RLS e não é executável por anon. Exclusões de serviços/profissionais exigem proprietário; clientes exigem membro da própria empresa. Chaves estrangeiras impedem excluir cadastros referenciados por agendamentos. Jornada, almoço e folgas são salvos atomicamente. Testes isolados cobrem autorização, rollback, exclusões e horários públicos.
+
+A revisão dos advisors não indicou novos avisos específicos desta função; continuam os avisos existentes de RPCs SECURITY DEFINER e proteção contra senhas vazadas. Referências: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable e https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection

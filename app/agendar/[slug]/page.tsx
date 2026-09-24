@@ -9,7 +9,15 @@ import { useCompanyTheme } from "@/hooks/use-appearance";
 import { Brand } from "@/components/brand";
 import { copyText } from "@/lib/clipboard";
 import { Toaster } from "sonner";
-import { CalendarDays, Check, Copy, UserRound } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Copy,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -46,7 +54,7 @@ export default function BookingPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
-  const [service, setService] = useState(""),
+  const [servicesSelected, setServicesSelected] = useState<string[]>([]),
     [person, setPerson] = useState(""),
     [date, setDate] = useState(today()),
     [slots, setSlots] = useState<Slot[]>([]);
@@ -57,6 +65,8 @@ export default function BookingPage() {
     [cancelled, setCancelled] = useState(false);
   const [challenge, setChallenge] = useState("");
   const [challengeVersion, setChallengeVersion] = useState(0);
+  const [serviceQuery, setServiceQuery] = useState("");
+  const [personQuery, setPersonQuery] = useState("");
   const [appearance, setAppearance] = useState<Appearance>(defaultAppearance);
   useCompanyTheme(appearance);
   useEffect(() => {
@@ -89,11 +99,11 @@ export default function BookingPage() {
     });
   }, [slug]);
   useEffect(() => {
-    if (!service || !person || !date) return;
+    if (!servicesSelected.length || !person || !date) return;
     let live = true;
-    db.rpc("booking_slots", {
+    db.rpc("booking_slots_multi", {
       p_slug: slug,
-      p_service: service,
+      p_services: servicesSelected,
       p_professional: person,
       p_date: date,
     }).then(({ data, error: e }) => {
@@ -105,29 +115,43 @@ export default function BookingPage() {
     return () => {
       live = false;
     };
-  }, [slug, service, person, date]);
+  }, [slug, servicesSelected, person, date]);
   async function book(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!slot || fetching || busy || !service || !person) return;
+    if (!slot || fetching || busy || !servicesSelected.length || !person)
+      return;
     setBusy(true);
     setError("");
     const f = new FormData(e.currentTarget);
     try {
       const response = await fetch("/api/book", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          p_slug: slug, p_service: service, p_professional: person, p_starts_at: slot,
-          p_name: String(f.get("name")), p_phone: String(f.get("phone")),
-          p_email: String(f.get("email")) || null, token: challenge,
+          p_slug: slug,
+          p_services: servicesSelected,
+          p_professional: person,
+          p_starts_at: slot,
+          p_name: String(f.get("name")),
+          p_phone: String(f.get("phone")),
+          p_email: String(f.get("email")) || null,
+          token: challenge,
         }),
       });
       const data = await response.json();
-      if (!response.ok) { setError(data.error || "Não foi possível reservar."); return; }
+      if (!response.ok) {
+        setError(data.error || "Não foi possível reservar.");
+        return;
+      }
       setDone({ id: data.booking_id, token: data.cancel_token });
     } catch {
-      setError("Conexão interrompida. Confira com a empresa se a reserva foi registrada antes de tentar novamente.");
+      setError(
+        "Conexão interrompida. Confira com a empresa se a reserva foi registrada antes de tentar novamente.",
+      );
     } finally {
-      setBusy(false); setChallenge(""); setChallengeVersion(v => v + 1);
+      setBusy(false);
+      setChallenge("");
+      setChallengeVersion((v) => v + 1);
     }
   }
 
@@ -202,7 +226,10 @@ export default function BookingPage() {
               <h1>Agendamento confirmado!</h1>
               <p>
                 {catalog?.company.name} ·{" "}
-                {catalog?.services.find((s) => s.id === service)?.name}
+                {servicesSelected
+                  .map((id) => catalog?.services.find((s) => s.id === id)?.name)
+                  .filter(Boolean)
+                  .join(" + ")}
               </p>
               <p>
                 {new Date(slot).toLocaleDateString("pt-BR", {
@@ -244,138 +271,238 @@ export default function BookingPage() {
                   Escolha o atendimento e encontre o melhor horário para você.
                 </p>
               </div>
-              <div className="booking-form-grid">
-                <section className="booking-choices">
-                  <label>
-                    1. Serviço
-                    <select
-                      value={service}
-                      onChange={(e) => {
-                        setService(e.target.value);
-                        resetSlots(!!e.target.value && !!person && !!date);
-                      }}
-                    >
-                      <option value="">Selecione um serviço</option>
-                      {catalog?.services.map((s) => (
-                        <option value={s.id} key={s.id}>
-                          {s.name} · {s.duration_minutes} min
-                          {s.price !== null
-                            ? ` · R$ ${Number(s.price).toFixed(2)}`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    2. Profissional
-                    <select
-                      value={person}
-                      onChange={(e) => {
-                        setPerson(e.target.value);
-                        resetSlots(!!service && !!e.target.value && !!date);
-                      }}
-                    >
-                      <option value="">Selecione um profissional</option>
-                      {catalog?.professionals.map((p) => (
-                        <option value={p.id} key={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    3. Data
-                    <Input
-                      type="date"
-                      value={date}
-                      min={today()}
-                      max={maxDate}
-                      onChange={(e) => {
-                        setDate(e.target.value);
-                        resetSlots(!!service && !!person && !!e.target.value);
-                      }}
+              <section className="public-service-catalog">
+                <div className="catalog-heading">
+                  <div>
+                    <span className="eyebrow">1. ESCOLHA OS SERVIÇOS</span>
+                    <h2>O que você deseja fazer?</h2>
+                  </div>
+                  <label className="search-field">
+                    <Search size={17} />
+                    <input
+                      aria-label="Pesquisar serviços"
+                      value={serviceQuery}
+                      onChange={(event) => setServiceQuery(event.target.value)}
+                      placeholder="Pesquisar serviço..."
                     />
                   </label>
-                  <div>
-                    <strong className="choice-label">
-                      Horários disponíveis
-                    </strong>
-                    {fetching ? (
-                      <p className="public-hint">Buscando horários...</p>
-                    ) : !service || !person ? (
-                      <p className="public-hint">
-                        Selecione o serviço e o profissional.
-                      </p>
-                    ) : slots.length ? (
-                      <div className="slots">
-                        {slots.map((s) => (
+                </div>
+                <div className="service-cards">
+                  {catalog?.services
+                    .filter((item) =>
+                      item.name
+                        .toLocaleLowerCase("pt-BR")
+                        .includes(
+                          serviceQuery.trim().toLocaleLowerCase("pt-BR"),
+                        ),
+                    )
+                    .map((item) => {
+                      const selected = servicesSelected.includes(item.id);
+                      return (
+                        <article
+                          key={item.id}
+                          className={selected ? "selected" : ""}
+                        >
+                          <div>
+                            <h3>{item.name}</h3>
+                            <p>{item.duration_minutes} minutos</p>
+                            <strong>
+                              {item.price === null
+                                ? "Consulte o valor"
+                                : Number(item.price).toLocaleString("pt-BR", {
+                                    style: "currency",
+                                    currency: "BRL",
+                                  })}
+                            </strong>
+                          </div>
                           <button
                             type="button"
-                            aria-pressed={slot === s.starts_at}
-                            className={slot === s.starts_at ? "selected" : ""}
-                            key={s.starts_at}
-                            onClick={() => setSlot(s.starts_at)}
+                            aria-label={
+                              selected
+                                ? `Remover ${item.name}`
+                                : `Adicionar ${item.name}`
+                            }
+                            onClick={() => {
+                              setServicesSelected((current) =>
+                                selected
+                                  ? current.filter((id) => id !== item.id)
+                                  : [...current, item.id],
+                              );
+                              resetSlots(false);
+                            }}
                           >
-                            {time(s.starts_at)}
+                            {selected ? (
+                              <Trash2 size={18} />
+                            ) : (
+                              <Plus size={20} />
+                            )}
                           </button>
-                        ))}
+                        </article>
+                      );
+                    })}
+                </div>
+              </section>
+              {servicesSelected.length > 0 && (
+                <div className="booking-form-grid">
+                  <section className="booking-choices">
+                    <div className="selected-services">
+                      <strong>Serviços selecionados</strong>
+                      {servicesSelected.map((id) => {
+                        const item = catalog?.services.find(
+                          (entry) => entry.id === id,
+                        );
+                        return (
+                          item && (
+                            <span key={id}>
+                              {item.name}
+                              <small>{item.duration_minutes} min</small>
+                            </span>
+                          )
+                        );
+                      })}
+                    </div>
+                    <div className="professional-picker">
+                      <strong className="choice-label">
+                        2. Escolha o profissional
+                      </strong>
+                      <label className="search-field">
+                        <Search size={16} />
+                        <input
+                          aria-label="Pesquisar profissionais"
+                          value={personQuery}
+                          onChange={(event) =>
+                            setPersonQuery(event.target.value)
+                          }
+                          placeholder="Pesquisar profissional..."
+                        />
+                      </label>
+                      <div className="professional-options">
+                        {catalog?.professionals
+                          .filter((item) =>
+                            item.name
+                              .toLocaleLowerCase("pt-BR")
+                              .includes(
+                                personQuery.trim().toLocaleLowerCase("pt-BR"),
+                              ),
+                          )
+                          .map((item) => (
+                            <button
+                              type="button"
+                              aria-pressed={person === item.id}
+                              key={item.id}
+                              onClick={() => {
+                                setPerson(item.id);
+                                resetSlots(!!date);
+                              }}
+                            >
+                              <UserRound size={17} />
+                              {item.name}
+                            </button>
+                          ))}
                       </div>
-                    ) : (
-                      <p className="public-hint">
-                        Nenhum horário livre nesta data.
-                      </p>
-                    )}
-                  </div>
-                </section>
-                <section className="booking-contact">
-                  <div className="contact-title">
-                    <UserRound size={20} />
-                    <h2>Seus dados</h2>
-                  </div>
-                  <form className="dialog-form" onSubmit={book}>
+                    </div>
                     <label>
-                      Nome completo
+                      3. Data
                       <Input
-                        name="name"
-                        minLength={2}
-                        required
-                        placeholder="Seu nome"
+                        type="date"
+                        value={date}
+                        min={today()}
+                        max={maxDate}
+                        onChange={(e) => {
+                          setDate(e.target.value);
+                          resetSlots(
+                            servicesSelected.length > 0 &&
+                              !!person &&
+                              !!e.target.value,
+                          );
+                        }}
                       />
                     </label>
-                    <label>
-                      WhatsApp ou telefone
-                      <Input
-                        name="phone"
-                        type="tel"
-                        minLength={7}
-                        required
-                        placeholder="(00) 00000-0000"
+                    <div>
+                      <strong className="choice-label">
+                        Horários disponíveis
+                      </strong>
+                      {fetching ? (
+                        <p className="public-hint">Buscando horários...</p>
+                      ) : !person ? (
+                        <p className="public-hint">Selecione o profissional.</p>
+                      ) : slots.length ? (
+                        <div className="slots">
+                          {slots.map((s) => (
+                            <button
+                              type="button"
+                              aria-pressed={slot === s.starts_at}
+                              className={slot === s.starts_at ? "selected" : ""}
+                              key={s.starts_at}
+                              onClick={() => setSlot(s.starts_at)}
+                            >
+                              {time(s.starts_at)}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="public-hint">
+                          Nenhum horário livre nesta data.
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                  <section className="booking-contact">
+                    <div className="contact-title">
+                      <UserRound size={20} />
+                      <h2>Seus dados</h2>
+                    </div>
+                    <form className="dialog-form" onSubmit={book}>
+                      <label>
+                        Nome completo
+                        <Input
+                          name="name"
+                          minLength={2}
+                          required
+                          placeholder="Seu nome"
+                        />
+                      </label>
+                      <label>
+                        WhatsApp ou telefone
+                        <Input
+                          name="phone"
+                          type="tel"
+                          minLength={7}
+                          required
+                          placeholder="(00) 00000-0000"
+                        />
+                      </label>
+                      <label>
+                        E-mail <small>(opcional)</small>
+                        <Input
+                          name="email"
+                          type="email"
+                          placeholder="voce@email.com"
+                        />
+                      </label>
+                      {error && (
+                        <p className="form-message" role="alert">
+                          {error}
+                        </p>
+                      )}
+                      <BookingChallenge
+                        key={challengeVersion}
+                        onToken={setChallenge}
                       />
-                    </label>
-                    <label>
-                      E-mail <small>(opcional)</small>
-                      <Input
-                        name="email"
-                        type="email"
-                        placeholder="voce@email.com"
-                      />
-                    </label>
-                    {error && (
-                      <p className="form-message" role="alert">
-                        {error}
-                      </p>
-                    )}
-                    <BookingChallenge key={challengeVersion} onToken={setChallenge} />
-                    <Button disabled={!slot || busy || fetching || !challenge} size="lg">
-                      {busy ? "Confirmando..." : "Confirmar agendamento"}
-                    </Button>
-                    <small>
-                      Você receberá a confirmação nesta página. Guarde o link de
-                      cancelamento.
-                    </small>
-                  </form>
-                </section>
-              </div>
+                      <Button
+                        disabled={!slot || busy || fetching || !challenge}
+                        size="lg"
+                      >
+                        {busy ? "Confirmando..." : "Confirmar agendamento"}
+                      </Button>
+                      <small>
+                        Você receberá a confirmação nesta página. Guarde o link
+                        de cancelamento.
+                      </small>
+                    </form>
+                  </section>
+                </div>
+              )}
             </>
           )}
         </main>

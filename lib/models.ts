@@ -25,6 +25,8 @@ export type Booking = {
   services: { name: string } | null;
   charged_price?: number | null;
   price_source?: "at_completion" | "historical_estimate" | "unpriced" | null;
+  booking_group_id?: string | null;
+  service_order?: number | null;
 };
 export type Appearance = {
   primary_color: string;

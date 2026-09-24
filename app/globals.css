@@ -859,6 +859,101 @@ tr:last-child td {
   margin: 0;
   color: #76879a;
 }
+.public-service-catalog {
+  padding: 32px 42px;
+  border-bottom: 1px solid #e9eff6;
+}
+.catalog-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+.catalog-heading h2 {
+  margin: 7px 0 0;
+}
+.catalog-heading .search-field {
+  width: min(360px, 100%);
+}
+.service-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.service-cards article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  min-height: 104px;
+  padding: 17px;
+  border: 1px solid var(--line, #dbe6f2);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+.service-cards article.selected {
+  border-color: var(--brand-color, #1765d8);
+  background: var(--brand-soft, #edf5ff);
+}
+.service-cards h3,
+.service-cards p {
+  margin: 0;
+}
+.service-cards p {
+  margin: 4px 0 7px;
+  color: var(--text-muted, #76879a);
+  font-size: 13px;
+}
+.service-cards article > button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand-color, #1765d8);
+  color: var(--brand-ink, #fff);
+}
+.selected-services {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 24px;
+}
+.selected-services > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: var(--brand-soft, #edf5ff);
+}
+.selected-services small {
+  color: var(--text-muted, #76879a);
+}
+.professional-picker {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.professional-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.professional-options button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid var(--line, #dbe6f2);
+  border-radius: 9px;
+}
+.professional-options button[aria-pressed="true"] {
+  background: var(--brand-color, #1765d8);
+  color: var(--brand-ink, #fff);
+  border-color: var(--brand-color, #1765d8);
+}
 .booking-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1019,6 +1114,19 @@ tr:last-child td {
   }
   .public-header > span {
     display: none;
+  }
+  .public-service-catalog {
+    padding: 25px;
+  }
+  .catalog-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .catalog-heading .search-field {
+    width: 100%;
+  }
+  .service-cards {
+    grid-template-columns: 1fr;
   }
 }
 /* iSev visual identity */
@@ -1772,6 +1880,3 @@ button[data-variant="outline"] {
     animation: none !important;
   }
 }
-
-
-

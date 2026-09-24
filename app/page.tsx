@@ -12,6 +12,8 @@ import { observeIdentity } from "@/lib/session.mjs";
 import type { Company, Person, Service, Booking } from "@/lib/models";
 import { AgendaCalendar } from "@/components/agenda-calendar";
 import { Finance } from "@/components/finance";
+import { History } from "@/components/history";
+import { SearchableSelect } from "@/components/searchable-select";
 import { CompanySettings } from "@/components/company-settings";
 import { CompanyIdentity } from "@/components/company-identity";
 import { EntityColors } from "@/components/entity-colors";
@@ -36,6 +38,8 @@ import {
   Wallet,
   ChevronRight,
   Copy,
+  Search,
+  History as HistoryIcon,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -69,6 +73,7 @@ type Customer = {
 const nav = [
   { label: "Visão geral", icon: LayoutDashboard },
   { label: "Agenda", icon: CalendarDays },
+  { label: "Histórico", icon: HistoryIcon },
   { label: "Financeiro", icon: Wallet },
   { label: "Clientes", icon: Users },
   { label: "Serviços", icon: Scissors },
@@ -80,6 +85,7 @@ const nav = [
 const descriptions: Record<string, string> = {
   "Visão geral": "Acompanhe os atendimentos do seu negócio.",
   Agenda: "Seu calendário, seus horários, tudo à vista.",
+  Histórico: "Consulte tudo o que aconteceu em cada dia.",
   Financeiro: "Acompanhe a receita dos serviços concluídos.",
   Clientes: "As pessoas que você atende em um só lugar.",
   Serviços: "Defina a duração e o valor dos atendimentos.",
@@ -140,6 +146,7 @@ export default function Home() {
   const [availabilityReady, setAvailabilityReady] = useState(false);
   const [bookingStart, setBookingStart] = useState("");
   const [bookingProfessional, setBookingProfessional] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const {
     appearance,
@@ -318,11 +325,15 @@ export default function Home() {
       ? ""
       : `${window.location.origin}/agendar/${company.slug}`;
   async function changeStatus(id: string, status: string) {
-    const { error: e } = await db
+    const target = bookings.find((booking) => booking.id === id);
+    let request = db
       .from("bookings")
       .update({ status })
-      .eq("id", id)
       .eq("company_id", company!.id);
+    request = target?.booking_group_id
+      ? request.eq("booking_group_id", target.booking_group_id)
+      : request.eq("id", id);
+    const { error: e } = await request;
     if (e) toast.error(e.message);
     else {
       toast.success("Atendimento atualizado");
@@ -362,6 +373,14 @@ export default function Home() {
           <span className="crumb">
             {company.name} <span>/</span> {page}
           </span>
+          <Button
+            className="global-search-trigger"
+            variant="outline"
+            aria-label="Pesquisar clientes, serviços e profissionais"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search size={16} /> <span>Pesquisar</span>
+          </Button>
           <span className="account-email">
             <span className="online-dot" /> {user.email}
           </span>
@@ -503,17 +522,26 @@ export default function Home() {
               appearance={appearance}
               timezone={company.timezone}
               onDelete={async (id) => {
-                const { data, error } = await db
+                const target = bookings.find((booking) => booking.id === id);
+                let request = db
                   .from("bookings")
                   .delete()
-                  .eq("company_id", company.id)
-                  .eq("id", id)
-                  .select("id");
+                  .eq("company_id", company.id);
+                request = target?.booking_group_id
+                  ? request.eq("booking_group_id", target.booking_group_id)
+                  : request.eq("id", id);
+                const { data, error } = await request.select("id");
                 if (error || !data?.length)
                   throw new Error(
                     "Não foi possível excluir. Confira sua conexão e permissões.",
                   );
-                setBookings((bs) => bs.filter((b) => b.id !== id));
+                setBookings((items) =>
+                  items.filter((booking) =>
+                    target?.booking_group_id
+                      ? booking.booking_group_id !== target.booking_group_id
+                      : booking.id !== id,
+                  ),
+                );
                 toast.success("Agendamento excluído");
               }}
               hours={calendarHours}
@@ -522,6 +550,9 @@ export default function Home() {
               onStatus={changeStatus}
               onCreate={openBooking}
             />
+          )}
+          {page === "Histórico" && !dataLoading && !error && (
+            <History bookings={bookings} timezone={company.timezone} />
           )}
           {page === "Financeiro" && !dataLoading && !error && (
             <Finance
@@ -679,6 +710,14 @@ export default function Home() {
         </div>
       </SidebarInset>
       <MobileNavigation page={page} onNavigate={setPage} />
+      <GlobalSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        customers={customers}
+        services={services}
+        people={people}
+        onNavigate={setPage}
+      />
       <CreateDialog
         key={`${dialog}-${editing?.id ?? "new"}`}
         editing={editing}
@@ -846,6 +885,13 @@ function Directory({
   edit: (index: number) => void;
   remove: (index: number) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const normalized = query.trim().toLocaleLowerCase("pt-BR");
+  const filtered = rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) =>
+      row.join(" ").toLocaleLowerCase("pt-BR").includes(normalized),
+    );
   return (
     <div className="panel">
       <div className="panel-heading">
@@ -859,6 +905,15 @@ function Directory({
           <Plus size={16} /> Adicionar
         </Button>
       </div>
+      <label className="directory-search search-field">
+        <Search size={17} />
+        <Input
+          aria-label={`Pesquisar em ${title.toLocaleLowerCase("pt-BR")}`}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={`Pesquisar ${title.toLocaleLowerCase("pt-BR")}...`}
+        />
+      </label>
       {rows.length ? (
         <div className="table-wrap">
           <table>
@@ -871,8 +926,8 @@ function Directory({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, i) => (
-                <tr key={i}>
+              {filtered.map(({ row, index }) => (
+                <tr key={index}>
                   {row.map((cell, j) => (
                     <td key={j}>{cell}</td>
                   ))}
@@ -881,14 +936,14 @@ function Directory({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => edit(i)}
+                        onClick={() => edit(index)}
                       >
                         Editar
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => remove(i)}
+                        onClick={() => remove(index)}
                       >
                         Excluir
                       </Button>
@@ -898,6 +953,9 @@ function Directory({
               ))}
             </tbody>
           </table>
+          {!filtered.length && (
+            <p className="directory-no-results">Nenhum resultado encontrado.</p>
+          )}
         </div>
       ) : (
         <div className="empty">
@@ -1339,47 +1397,37 @@ function CreateDialog({
           )}
           {kind === "booking" && (
             <>
-              <label>
-                Cliente
-                <select name="customer_id" required>
-                  <option value="">Selecione</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Serviço
-                <select name="service_id" required>
-                  <option value="">Selecione</option>
-                  {services
-                    .filter((s) => s.active)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} · {s.duration_minutes} min
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Profissional
-                <select
-                  name="professional_id"
-                  required
-                  defaultValue={initialProfessional || undefined}
-                >
-                  <option value="">Selecione</option>
-                  {people
-                    .filter((p) => p.active)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
+              <SearchableSelect
+                name="customer_id"
+                label="Cliente"
+                required
+                options={customers.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  detail: c.phone || c.email || undefined,
+                }))}
+              />
+              <SearchableSelect
+                name="service_id"
+                label="Serviço"
+                required
+                options={services
+                  .filter((s) => s.active)
+                  .map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                    detail: `${s.duration_minutes} min${s.price === null ? "" : ` · ${Number(s.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}`,
+                  }))}
+              />
+              <SearchableSelect
+                name="professional_id"
+                label="Profissional"
+                required
+                defaultValue={initialProfessional}
+                options={people
+                  .filter((p) => p.active)
+                  .map((p) => ({ value: p.id, label: p.name }))}
+              />
               <div className="two-fields">
                 <label>
                   Data
@@ -1414,6 +1462,103 @@ function CreateDialog({
           )}
           <Button disabled={busy}>{busy ? "Salvando..." : "Salvar"}</Button>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GlobalSearch({
+  open,
+  onOpenChange,
+  customers,
+  services,
+  people,
+  onNavigate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customers: Customer[];
+  services: Service[];
+  people: Person[];
+  onNavigate: (page: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const normalized = query.trim().toLocaleLowerCase("pt-BR");
+  const results = normalized
+    ? [
+        ...customers.map((item) => ({
+          page: "Clientes",
+          name: item.name,
+          detail: item.phone || item.email || "Cliente",
+          icon: Users,
+        })),
+        ...services.map((item) => ({
+          page: "Serviços",
+          name: item.name,
+          detail: `${item.duration_minutes} min`,
+          icon: Scissors,
+        })),
+        ...people.map((item) => ({
+          page: "Profissionais",
+          name: item.name,
+          detail: item.active ? "Profissional ativo" : "Profissional inativo",
+          icon: UserRound,
+        })),
+      ].filter((item) =>
+        `${item.name} ${item.detail}`
+          .toLocaleLowerCase("pt-BR")
+          .includes(normalized),
+      )
+    : [];
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setQuery("");
+      }}
+    >
+      <DialogContent className="global-search-dialog">
+        <DialogHeader>
+          <DialogTitle>Pesquisar</DialogTitle>
+        </DialogHeader>
+        <label className="search-field global-search-input">
+          <Search size={18} />
+          <Input
+            autoFocus
+            aria-label="Pesquisar clientes, serviços e profissionais"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Digite um nome, telefone ou serviço..."
+          />
+        </label>
+        <div className="global-search-results">
+          {!normalized ? (
+            <p>Pesquise clientes, serviços ou profissionais.</p>
+          ) : results.length ? (
+            results.slice(0, 30).map((item, index) => (
+              <button
+                key={`${item.page}-${item.name}-${index}`}
+                onClick={() => {
+                  onNavigate(item.page);
+                  onOpenChange(false);
+                  setQuery("");
+                }}
+              >
+                <item.icon size={18} />
+                <span>
+                  <strong>{item.name}</strong>
+                  <small>
+                    {item.page} · {item.detail}
+                  </small>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            ))
+          ) : (
+            <p>Nenhum resultado encontrado.</p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

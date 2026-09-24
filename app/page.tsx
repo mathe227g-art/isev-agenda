@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSidebar } from "@/components/ui/sidebar";
+import type { WorkingHour, TimeBlock } from "@/components/mobile-agenda";
+import { Menu } from "lucide-react";
 import { Availability } from "@/components/availability";
 import { TimePicker, quarterHours } from "@/components/time-picker";
 import { dateKey } from "@/lib/planning.mjs";
@@ -132,7 +135,11 @@ export default function Home() {
   } | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [calendarHours, setCalendarHours] = useState<WorkingHour[]>([]);
+  const [calendarBlocks, setCalendarBlocks] = useState<TimeBlock[]>([]);
+  const [availabilityReady, setAvailabilityReady] = useState(false);
   const [bookingStart, setBookingStart] = useState("");
+  const [bookingProfessional, setBookingProfessional] = useState("");
   const [dataLoading, setDataLoading] = useState(true);
   const {
     appearance,
@@ -142,7 +149,8 @@ export default function Home() {
     appearanceAvailable,
   } = useAppearance(company?.id);
   useCompanyTheme(appearance);
-  function openBooking(value = "") {
+  function openBooking(value = "", professional = "") {
+    setBookingProfessional(professional);
     setEditing(null);
     setBookingStart(value);
     setDialog("booking");
@@ -161,7 +169,14 @@ export default function Home() {
           setCompanyLoading(true);
           setCompany(null);
           setIsOwner(false);
-          setPage("Visão geral");
+          setPage(
+            window.matchMedia("(max-width: 767px)").matches
+              ? "Agenda"
+              : "Visão geral",
+          );
+          setCalendarHours([]);
+          setCalendarBlocks([]);
+          setAvailabilityReady(false);
           setDataLoading(true);
           setPeople([]);
           setServices([]);
@@ -226,7 +241,15 @@ export default function Home() {
         .eq("company_id", company.id)
         .order("name"),
       fetchBookings(company.id),
-    ]).then(([p, s, c, b]) => {
+      db
+        .from("working_hours")
+        .select("professional_id,weekday,start_time,end_time")
+        .eq("company_id", company.id),
+      db
+        .from("time_blocks")
+        .select("id,professional_id,starts_at,ends_at,reason")
+        .eq("company_id", company.id),
+    ]).then(([p, s, c, b, h, t]) => {
       if (!live) return;
       setDataLoading(false);
       if ([p, s, c, b].some((r) => r.error)) {
@@ -235,6 +258,9 @@ export default function Home() {
         );
         return;
       }
+      setCalendarHours(h.data ?? []);
+      setCalendarBlocks(t.data ?? []);
+      setAvailabilityReady(!h.error && !t.error);
       setPeople(p.data ?? []);
       setServices(s.data ?? []);
       setCustomers(c.data ?? []);
@@ -316,41 +342,14 @@ export default function Home() {
         </SidebarHeader>
         <SidebarContent>
           <p className="nav-caption">PRINCIPAL</p>
-          <SidebarMenu className="nav-list">
-            {nav
-              .filter(
-                (item) =>
-                  isOwner ||
-                  ![
-                    "Serviços",
-                    "Profissionais",
-                    "Disponibilidade",
-                    "Configurações",
-                  ].includes(item.label),
-              )
-              .map((item) => (
-                <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    isActive={page === item.label}
-                    onClick={() => setPage(item.label)}
-                  >
-                    <item.icon size={18} />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-          </SidebarMenu>
+          <AppNavigation page={page} isOwner={isOwner} onNavigate={setPage} />
         </SidebarContent>
         <SidebarFooter className="side-foot">
-          <div className="company-tile">
-            <span className="company-avatar">
-              {company.name[0].toUpperCase()}
-            </span>
-            <div>
-              <strong>{company.name}</strong>
-              <small>Conta da empresa</small>
-            </div>
-          </div>
+          <CompanyIdentity
+            name={company.name}
+            logo={appearance.logo_data_url}
+            compact
+          />
           <button className="signout" onClick={logout}>
             <LogOut size={16} /> Sair
           </button>
@@ -367,7 +366,9 @@ export default function Home() {
             <span className="online-dot" /> {user.email}
           </span>
         </header>
-        <div className="main-area">
+        <div
+          className={`main-area ${page === "Agenda" ? "agenda-main-area" : ""}`}
+        >
           <div className="heading">
             <div>
               <span className="eyebrow">
@@ -501,6 +502,23 @@ export default function Home() {
               services={services}
               appearance={appearance}
               timezone={company.timezone}
+              onDelete={async (id) => {
+                const { data, error } = await db
+                  .from("bookings")
+                  .delete()
+                  .eq("company_id", company.id)
+                  .eq("id", id)
+                  .select("id");
+                if (error || !data?.length)
+                  throw new Error(
+                    "Não foi possível excluir. Confira sua conexão e permissões.",
+                  );
+                setBookings((bs) => bs.filter((b) => b.id !== id));
+                toast.success("Agendamento excluído");
+              }}
+              hours={calendarHours}
+              blocks={calendarBlocks}
+              availabilityReady={availabilityReady}
               onStatus={changeStatus}
               onCreate={openBooking}
             />
@@ -620,7 +638,7 @@ export default function Home() {
             </>
           )}
           {isOwner && page === "Disponibilidade" && (
-            <Availability company={company} people={people} />
+            <Availability company={company} people={people} onSaved={reload} />
           )}
           {page === "Página de agendamento" && (
             <div className="panel simple-panel">
@@ -660,10 +678,12 @@ export default function Home() {
           )}
         </div>
       </SidebarInset>
+      <MobileNavigation page={page} onNavigate={setPage} />
       <CreateDialog
         key={`${dialog}-${editing?.id ?? "new"}`}
         editing={editing}
         initialDate={bookingStart}
+        initialProfessional={bookingProfessional}
         kind={dialog}
         setKind={setDialog}
         company={company}
@@ -1117,6 +1137,7 @@ function Onboarding({ user, onReady }: { user: User; onReady: () => void }) {
 function CreateDialog({
   editing,
   initialDate,
+  initialProfessional,
   kind,
   setKind,
   company,
@@ -1127,6 +1148,7 @@ function CreateDialog({
 }: {
   editing: (Customer & Partial<Service & Person>) | null;
   initialDate: string;
+  initialProfessional: string;
   kind: string | null;
   setKind: (v: string | null) => void;
   company: Company;
@@ -1343,7 +1365,11 @@ function CreateDialog({
               </label>
               <label>
                 Profissional
-                <select name="professional_id" required>
+                <select
+                  name="professional_id"
+                  required
+                  defaultValue={initialProfessional || undefined}
+                >
                   <option value="">Selecione</option>
                   {people
                     .filter((p) => p.active)
@@ -1390,5 +1416,80 @@ function CreateDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AppNavigation({
+  page,
+  isOwner,
+  onNavigate,
+}: {
+  page: string;
+  isOwner: boolean;
+  onNavigate: (page: string) => void;
+}) {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenu className="nav-list">
+      {nav
+        .filter(
+          (item) =>
+            isOwner ||
+            ![
+              "Serviços",
+              "Profissionais",
+              "Disponibilidade",
+              "Configurações",
+            ].includes(item.label),
+        )
+        .map((item) => (
+          <SidebarMenuItem key={item.label}>
+            <SidebarMenuButton
+              isActive={page === item.label}
+              onClick={() => {
+                onNavigate(item.label);
+                setOpenMobile(false);
+              }}
+            >
+              <item.icon size={18} />
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+    </SidebarMenu>
+  );
+}
+function MobileNavigation({
+  page,
+  onNavigate,
+}: {
+  page: string;
+  onNavigate: (page: string) => void;
+}) {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <nav className="mobile-bottom-nav" aria-label="Navegação principal">
+      {[
+        { name: "Agenda", Icon: CalendarDays },
+        { name: "Clientes", Icon: Users },
+        { name: "Financeiro", Icon: Wallet },
+      ].map(({ name, Icon }) => (
+        <button
+          key={name}
+          aria-current={page === name ? "page" : undefined}
+          onClick={() => {
+            onNavigate(name);
+            setOpenMobile(false);
+          }}
+        >
+          <Icon size={22} />
+          <span>{name}</span>
+        </button>
+      ))}
+      <button onClick={() => setOpenMobile(true)}>
+        <Menu size={22} />
+        <span>Mais</span>
+      </button>
+    </nav>
   );
 }

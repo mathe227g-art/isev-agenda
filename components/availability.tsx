@@ -26,9 +26,11 @@ type Block = {
 export function Availability({
   company,
   people,
+  onSaved,
 }: {
   company: Company;
   people: Person[];
+  onSaved?: () => void;
 }) {
   const [person, setPerson] = useState("");
   return (
@@ -59,6 +61,7 @@ export function Availability({
           key={`${company.id}-${person}`}
           company={company}
           person={person}
+          onSaved={onSaved}
         />
       ) : (
         <div className="panel empty">
@@ -76,9 +79,11 @@ export function Availability({
 function WorkingWeek({
   company,
   person,
+  onSaved,
 }: {
   company: Company;
   person: string;
+  onSaved?: () => void;
 }) {
   const [week, setWeek] = useState<Day[]>(weekFromHours([]));
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -160,6 +165,7 @@ function WorkingWeek({
         );
       setDirty(false);
       toast.success("Jornada e folgas salvas");
+      onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
     } finally {
@@ -201,6 +207,7 @@ function WorkingWeek({
       );
       form.reset();
       toast.success("Período bloqueado");
+      onSaved?.();
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Não foi possível criar o bloqueio.",
@@ -224,6 +231,7 @@ function WorkingWeek({
       setBlocks((b) => b.filter((x) => x.id !== id));
       setRemoveId(null);
       toast.success("Bloqueio removido");
+      onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha de conexão.");
     } finally {

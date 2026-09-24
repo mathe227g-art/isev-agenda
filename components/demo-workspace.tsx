@@ -209,6 +209,34 @@ export function DemoWorkspace() {
                   `Horário selecionado: ${date.replace("T", " às ")} (demonstração)`,
                 )
               }
+              availabilityReady
+              hours={people.flatMap((p) =>
+                Array.from({ length: 6 }, (_, i) => ({
+                  professional_id: p.id,
+                  weekday: i + 1,
+                  start_time: "09:00",
+                  end_time: "18:00",
+                })),
+              )}
+              blocks={[
+                {
+                  id: "demo-block",
+                  professional_id: "ana",
+                  starts_at: zonedInstant(
+                    dateKey(new Date(), zone) + "T12:00",
+                    zone,
+                  ).toISOString(),
+                  ends_at: zonedInstant(
+                    dateKey(new Date(), zone) + "T13:00",
+                    zone,
+                  ).toISOString(),
+                  reason: "Almoço",
+                },
+              ]}
+              onDelete={async (id) => {
+                setBookings((bs) => bs.filter((b) => b.id !== id));
+                toast.success("Excluído somente na demonstração");
+              }}
               onStatus={async (id, status) => {
                 setBookings((bs) =>
                   bs.map((b) =>

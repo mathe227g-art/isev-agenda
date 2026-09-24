@@ -3,13 +3,17 @@ export function CompanyIdentity({
   name,
   logo,
   large = false,
+  compact = false,
 }: {
   name: string;
   logo: string | null;
   large?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <div className={`company-identity ${large ? "identity-large" : ""}`}>
+    <div
+      className={`company-identity ${large ? "identity-large" : ""} ${compact ? "identity-compact" : ""}`}
+    >
       {logo ? (
         <Image
           unoptimized
@@ -24,7 +28,7 @@ export function CompanyIdentity({
         </span>
       )}
       <div>
-        <small>SUA EMPRESA</small>
+        <small>{compact ? "Conta da empresa" : "SUA EMPRESA"}</small>
         <strong>{name}</strong>
       </div>
     </div>

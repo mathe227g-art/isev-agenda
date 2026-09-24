@@ -1231,7 +1231,7 @@ html[data-company-theme="dark"] .status-no_show {
   margin-bottom: 22px;
 }
 .availability-heading > svg {
-  color: var(--brand);
+  color: var(--brand-color);
   margin-top: 3px;
   flex-shrink: 0;
 }
@@ -1253,11 +1253,11 @@ html[data-company-theme="dark"] .status-no_show {
   cursor: pointer;
 }
 .days-off-options label.day-off-selected {
-  border-color: var(--brand);
+  border-color: var(--brand-color);
   background: var(--brand-soft);
 }
 .days-off-options input {
-  accent-color: var(--brand);
+  accent-color: var(--brand-color);
   width: 16px;
   height: 16px;
 }
@@ -1445,4 +1445,451 @@ html[data-company-theme="dark"] .status-no_show {
 .calendar-event {
   gap: 3px;
   padding: 4px;
+}
+.identity-compact {
+  padding: 0;
+  gap: 12px;
+}
+.identity-compact img,
+.identity-compact .identity-initial {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.identity-compact > div {
+  display: flex;
+  flex-direction: column;
+}
+.identity-compact strong {
+  order: 0;
+  font-size: 13px;
+}
+.identity-compact small {
+  order: 1;
+  letter-spacing: 0;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.mobile-bottom-nav,
+.mobile-agenda {
+  display: none;
+}
+.booking-delete-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #ef444466;
+  border-radius: 12px;
+}
+.booking-delete-confirm p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 767px) {
+  .workspace {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .main-area {
+    padding: 18px 14px;
+  }
+  .topbar {
+    height: 56px;
+    padding: 0 14px;
+  }
+  .account-email {
+    display: none;
+  }
+  .heading {
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+  .heading h1 {
+    font-size: 25px;
+  }
+  .heading .eyebrow {
+    display: none;
+  }
+  .agenda-main-area {
+    padding: 0;
+  }
+  .agenda-main-area > .heading {
+    display: none;
+  }
+  .agenda-main-area > .muted {
+    padding: 0 14px;
+    font-size: 12px;
+  }
+  .calendar-mobile-panel {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .mobile-agenda {
+    display: block;
+    min-width: 0;
+  }
+  .mobile-agenda-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 14px;
+  }
+  .mobile-agenda-controls > button {
+    min-width: 40px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+  }
+  .mobile-date-picker {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+  }
+  .mobile-date-picker strong {
+    font-size: 21px;
+  }
+  .mobile-date-picker input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .mobile-today {
+    color: var(--brand-color);
+    font-size: 12px;
+  }
+  .mobile-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    padding: 0 8px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-week button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 1px;
+    border-radius: 12px;
+    min-width: 0;
+    min-height: 64px;
+  }
+  .mobile-week button > span {
+    text-transform: uppercase;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .mobile-week strong {
+    font-size: 21px;
+    line-height: 1.2;
+  }
+  .mobile-week button[aria-pressed="true"] {
+    background: var(--brand-soft);
+    color: var(--brand-color);
+    box-shadow: inset 0 0 0 1px var(--brand-color);
+  }
+  .mobile-week .today-date {
+    color: var(--brand-color);
+  }
+  .mobile-week i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+  }
+  .mobile-week i.has-bookings {
+    background: currentColor;
+  }
+  .mobile-professional {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+  }
+  .professional-dot {
+    height: 28px;
+    width: 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .mobile-professional label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mobile-professional label > span {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .mobile-professional select {
+    width: 100%;
+    padding: 2px 24px 2px 0;
+    border: 0;
+    background-color: transparent;
+    font-weight: 700;
+    height: 32px;
+    min-height: 32px;
+  }
+  .mobile-professional > small {
+    font-size: 10px;
+    color: var(--text-muted);
+    max-width: 120px;
+  }
+  .mobile-status-legend {
+    display: flex;
+    gap: 10px;
+    padding: 9px 14px;
+    flex-wrap: wrap;
+  }
+  .mobile-status-legend span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .mobile-status-legend i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .mobile-status-legend .legend-status-confirmed {
+    background: #eab308;
+  }
+  .mobile-status-legend .legend-status-completed {
+    background: #22c55e;
+  }
+  .mobile-status-legend .legend-status-cancelled {
+    background: #ef4444;
+  }
+  .mobile-status-legend .legend-status-no_show {
+    background: #f97316;
+  }
+  .mobile-agenda-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 4px 14px 14px;
+    margin: 0;
+  }
+  .mobile-timeline {
+    position: relative;
+    margin: 0 10px 40px 0;
+  }
+  .mobile-time-tick {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed var(--line);
+    margin-left: 52px;
+    pointer-events: none;
+  }
+  .mobile-time-tick.full-hour {
+    border-top-style: solid;
+  }
+  .mobile-time-tick > span {
+    position: absolute;
+    right: calc(100% + 8px);
+    top: -8px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .mobile-time-tick.full-hour > span {
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .mobile-timeline-track {
+    position: relative;
+    margin-left: 54px;
+    height: 100%;
+  }
+  .mobile-free-slot {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    border: 0;
+    background: transparent;
+  }
+  .mobile-free-slot:focus-visible {
+    outline: 2px solid var(--brand-color);
+  }
+  .mobile-time-block {
+    position: absolute;
+    left: 0;
+    right: 2px;
+    display: flex;
+    flex-direction: column;
+    padding: 7px 9px;
+    overflow: hidden;
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 5px,
+      var(--line) 5px,
+      var(--line) 7px
+    );
+    border: 1px solid var(--line);
+    color: var(--text-muted);
+    pointer-events: none;
+    border-radius: 5px;
+  }
+  .mobile-time-block strong {
+    font-size: 12px;
+  }
+  .mobile-time-block span {
+    font-size: 12px;
+  }
+  .mobile-booking {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    border: 1px solid;
+    border-radius: 7px;
+    padding: 6px 9px;
+    overflow: hidden;
+    z-index: 2;
+  }
+  .mobile-booking > * {
+    flex-shrink: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-booking strong {
+    font-size: 13px;
+    line-height: 1.2;
+  }
+  .mobile-booking > span {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .mobile-booking .mobile-service {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    font-size: 11px;
+  }
+  .mobile-service i {
+    height: 11px;
+    width: 3px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .mobile-booking.calendar-status-confirmed {
+    background: #fef08a;
+    color: #422006;
+    border-color: #eab308;
+  }
+  .mobile-booking.calendar-status-completed {
+    background: #bbf7d0;
+    color: #14532d;
+    border-color: #22c55e;
+  }
+  .mobile-booking.calendar-status-cancelled {
+    background: #fecaca;
+    color: #7f1d1d;
+    border-color: #ef4444;
+    opacity: 1;
+    text-decoration: none;
+  }
+  .mobile-booking.calendar-status-no_show {
+    background: #fed7aa;
+    color: #7c2d12;
+    border-color: #f97316;
+    background-image: none;
+  }
+  .mobile-add-booking {
+    position: fixed;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    right: 18px;
+    height: 54px;
+    width: 54px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--brand-color);
+    color: var(--brand-ink);
+    box-shadow: 0 4px 16px #0003;
+    z-index: 25;
+  }
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: var(--surface, #fff);
+    z-index: 30;
+  }
+  .mobile-bottom-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 54px;
+    font-size: 10px;
+    color: var(--text-muted);
+    border-radius: 10px;
+  }
+  .mobile-bottom-nav button[aria-current="page"] {
+    color: var(--brand-color);
+    background: var(--brand-soft);
+  }
+  [data-slot="dialog-content"] {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 22px 18px;
+  }
+  [data-slot="dialog-close"] {
+    min-width: 36px;
+    min-height: 36px;
+    display: grid;
+    place-items: center;
+    top: 6px;
+    right: 6px;
+  }
+  .dialog-form input,
+  .dialog-form select,
+  .settings-form input,
+  .settings-form select,
+  .availability-page input,
+  .availability-page select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .directory-actions button {
+    min-height: 40px;
+  }
+  .table-wrap td,
+  .table-wrap th {
+    padding: 12px 10px;
+  }
+  .two-fields {
+    min-width: 0;
+  }
+  .two-fields > label {
+    min-width: 0;
+  }
 }

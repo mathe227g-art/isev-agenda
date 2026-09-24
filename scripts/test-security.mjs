@@ -34,6 +34,11 @@ const service = (
     `insert into services(company_id,name,duration_minutes,price) values('${a}','Corte',30,50) returning id`,
   )
 ).rows[0].id;
+const service2 = (
+  await db.query(
+    `insert into services(company_id,name,duration_minutes,price) values('${a}','Barba',45,35) returning id`,
+  )
+).rows[0].id;
 const prof = (
   await db.query(
     `insert into professionals(company_id,name) values('${a}','Ana') returning id`,
@@ -69,7 +74,7 @@ assert.equal(
   0,
 );
 await actor(staff);
-assert.equal((await db.query("select * from services")).rows.length, 1);
+assert.equal((await db.query("select * from services")).rows.length, 2);
 await assert.rejects(
   db.exec(
     `insert into services(company_id,name,duration_minutes) values('${a}','Proibido',30)`,
@@ -136,6 +141,40 @@ assert.equal(
   (await db.query(`select cancel_public('${first.cancel_token}') ok`)).rows[0]
     .ok,
   false,
+);
+const multiSlot = (
+  await db.query(
+    `select * from booking_slots_multi('alpha',array['${service}'::uuid,'${service2}'::uuid],'${prof}','${date}') limit 1`,
+  )
+).rows[0];
+assert(multiSlot);
+await db.exec("reset role;set role service_role");
+const multi = (
+  await db.query(
+    `select book_public_multi('alpha',array['${service}'::uuid,'${service2}'::uuid],'${prof}','${new Date(multiSlot.starts_at).toISOString()}','Cliente Multi','11777777777',null) data`,
+  )
+).rows[0].data;
+assert.equal(multi.booking_ids.length, 2);
+await db.exec("reset role");
+const multiRows = (
+  await db.query(
+    `select booking_group_id,service_order,starts_at,ends_at from bookings where id=any(array['${multi.booking_ids[0]}'::uuid,'${multi.booking_ids[1]}'::uuid]) order by service_order`,
+  )
+).rows;
+assert.equal(multiRows[0].booking_group_id, multiRows[1].booking_group_id);
+assert.equal(
+  new Date(multiRows[0].ends_at).toISOString(),
+  new Date(multiRows[1].starts_at).toISOString(),
+);
+await db.exec("reset role;set role anon");
+assert.equal(
+  (await db.query(`select cancel_public('${multi.cancel_token}') ok`)).rows[0]
+    .ok,
+  true,
+);
+await db.exec("reset role");
+await db.query(
+  `delete from bookings where booking_group_id='${multiRows[0].booking_group_id}'`,
 );
 await actor(ownerB);
 assert.equal((await db.query("select * from bookings")).rows.length, 0);

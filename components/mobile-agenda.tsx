@@ -15,6 +15,7 @@ import {
   minuteLabel,
   unavailablePeriods,
 } from "@/lib/mobile-agenda.mjs";
+import { isFutureLocalSlot } from "@/lib/dates.mjs";
 export type WorkingHour = {
   professional_id: string;
   weekday: number;
@@ -237,6 +238,9 @@ export function MobileAgenda({
                   className="mobile-free-slot"
                   style={{ top: (min - start) * scale, height: 15 * scale }}
                   aria-label={`Agendar ${formatDay(date)} às ${minuteLabel(min)}`}
+                  disabled={
+                    !isFutureLocalSlot(`${date}T${minuteLabel(min)}`, timezone)
+                  }
                   onClick={() => onCreate(`${date}T${minuteLabel(min)}`, id)}
                 />
               ))}

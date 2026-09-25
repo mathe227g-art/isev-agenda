@@ -14,11 +14,14 @@ import { AgendaCalendar } from "@/components/agenda-calendar";
 import { Finance } from "@/components/finance";
 import { History } from "@/components/history";
 import { SearchableSelect } from "@/components/searchable-select";
+import { ServicePicker } from "@/components/service-picker";
+import { CurrencyInput } from "@/components/currency-input";
 import { CompanySettings } from "@/components/company-settings";
 import { CompanyIdentity } from "@/components/company-identity";
 import { EntityColors } from "@/components/entity-colors";
 import { useAppearance, useCompanyTheme } from "@/hooks/use-appearance";
-import { zonedInstant } from "@/lib/dates.mjs";
+import { isFutureLocalSlot, zonedInstant } from "@/lib/dates.mjs";
+import { allocateCents, whatsappUrl } from "@/lib/money.mjs";
 import { fetchBookings } from "@/lib/bookings";
 import { db } from "@/lib/supabase";
 import { Brand } from "@/components/brand";
@@ -40,6 +43,9 @@ import {
   Copy,
   Search,
   History as HistoryIcon,
+  Eye,
+  EyeOff,
+  MessageCircle,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -278,6 +284,23 @@ export default function Home() {
       live = false;
     };
   }, [company, refresh]);
+  useEffect(() => {
+    if (!company) return;
+    const sync = () => setRefresh((value) => value + 1);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    const interval = window.setInterval(sync, 15000);
+    window.addEventListener("focus", sync);
+    window.addEventListener("online", sync);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("online", sync);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [company]);
   if (loading)
     return (
       <div className="centered">
@@ -928,9 +951,29 @@ function Directory({
             <tbody>
               {filtered.map(({ row, index }) => (
                 <tr key={index}>
-                  {row.map((cell, j) => (
-                    <td key={j}>{cell}</td>
-                  ))}
+                  {row.map((cell, j) => {
+                    const whatsApp =
+                      title === "Clientes" && j === 1
+                        ? whatsappUrl(cell)
+                        : null;
+                    return (
+                      <td key={j}>
+                        {whatsApp ? (
+                          <a
+                            className="whatsapp-link"
+                            href={whatsApp}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Conversar com ${row[0]} no WhatsApp`}
+                          >
+                            <MessageCircle size={16} /> {cell}
+                          </a>
+                        ) : (
+                          cell
+                        )}
+                      </td>
+                    );
+                  })}
                   <td>
                     <div className="directory-actions">
                       <Button
@@ -971,6 +1014,9 @@ function Auth() {
   const [register, setRegister] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
+    [confirmation, setConfirmation] = useState(""),
+    [showPassword, setShowPassword] = useState(false),
+    [showConfirmation, setShowConfirmation] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   async function submit(e: React.FormEvent) {
@@ -978,6 +1024,10 @@ function Auth() {
     setBusy(true);
     setMessage("");
     try {
+      if (register && password !== confirmation) {
+        setMessage("As senhas não são iguais.");
+        return;
+      }
       const result = register
         ? await db.auth.signUp({
             email: email.trim(),
@@ -985,11 +1035,18 @@ function Auth() {
             options: { emailRedirectTo: location.origin },
           })
         : await db.auth.signInWithPassword({ email: email.trim(), password });
+      const authError = result.error?.message || "";
       setMessage(
         result.error
-          ? result.error.message === "Invalid login credentials"
+          ? authError === "Invalid login credentials"
             ? "E-mail ou senha incorretos. Tente novamente."
-            : result.error.message
+            : /email not confirmed/i.test(authError)
+              ? "Confirme o e-mail enviado para sua caixa de entrada antes de entrar."
+              : /rate limit|too many/i.test(authError)
+                ? "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+                : /password/i.test(authError)
+                  ? "Use uma senha mais forte, com pelo menos 8 caracteres."
+                  : "Não foi possível entrar agora. Tente novamente."
           : register
             ? "Confira seu e-mail para confirmar a conta."
             : "",
@@ -1080,16 +1137,48 @@ function Auth() {
           </label>
           <label>
             Senha
-            <Input
-              type="password"
-              autoComplete={register ? "new-password" : "current-password"}
-              minLength={6}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
-            />
+            <span className="password-field">
+              <Input
+                type={showPassword ? "text" : "password"}
+                autoComplete={register ? "new-password" : "current-password"}
+                minLength={register ? 8 : 6}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Digite sua senha"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </span>
           </label>
+          {register && (
+            <label>
+              Confirme a senha
+              <span className="password-field">
+                <Input
+                  type={showConfirmation ? "text" : "password"}
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  value={confirmation}
+                  onChange={(e) => setConfirmation(e.target.value)}
+                  placeholder="Digite a senha novamente"
+                />
+                <button
+                  type="button"
+                  aria-label={showConfirmation ? "Ocultar confirmação" : "Mostrar confirmação"}
+                  onClick={() => setShowConfirmation((value) => !value)}
+                >
+                  {showConfirmation ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </span>
+            </label>
+          )}
           {message && (
             <div className="form-message" role="status">
               {message}
@@ -1120,6 +1209,7 @@ function Auth() {
             onClick={() => {
               setRegister(!register);
               setMessage("");
+              setConfirmation("");
             }}
           >
             {register
@@ -1217,6 +1307,8 @@ function CreateDialog({
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [manualPrice, setManualPrice] = useState(false);
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -1267,21 +1359,50 @@ function CreateDialog({
       } else {
         if (!quarterHours.includes(String(f.get("time"))))
           throw new Error("Escolha um horário de 15 em 15 minutos.");
+        if (!selectedServices.length)
+          throw new Error("Escolha pelo menos um serviço.");
+        if (!String(f.get("customer_id")))
+          throw new Error("Escolha um cliente.");
+        if (!String(f.get("professional_id")))
+          throw new Error("Escolha um profissional.");
         const start = zonedInstant(
           `${f.get("date")}T${f.get("time")}`,
           company.timezone,
         );
-        const duration =
-          services.find((s) => s.id === f.get("service_id"))
-            ?.duration_minutes || 30;
-        result = await db.from("bookings").insert({
-          company_id: company.id,
-          customer_id: String(f.get("customer_id")),
-          professional_id: String(f.get("professional_id")),
-          service_id: String(f.get("service_id")),
-          starts_at: start.toISOString(),
-          ends_at: new Date(start.getTime() + duration * 60000).toISOString(),
+        if (!isFutureLocalSlot(`${f.get("date")}T${f.get("time")}`, company.timezone))
+          throw new Error("Escolha um dia e horário que ainda não passaram.");
+        const chosen = selectedServices.map((id) =>
+          services.find((service) => service.id === id),
+        );
+        if (chosen.some((service) => !service?.active))
+          throw new Error("Um dos serviços escolhidos não está mais disponível.");
+        const totalValue = manualPrice ? Number(f.get("custom_price")) : null;
+        if (manualPrice && (!Number.isFinite(totalValue) || totalValue! < 0))
+          throw new Error("Digite um valor avulso válido.");
+        const customCents = manualPrice
+          ? allocateCents(
+              Math.round(totalValue! * 100),
+              chosen as Service[],
+            )
+          : [];
+        const groupId = crypto.randomUUID();
+        let cursor = start.getTime();
+        const rows = (chosen as Service[]).map((service, index) => {
+          const startsAt = new Date(cursor);
+          cursor += service.duration_minutes * 60000;
+          return {
+            company_id: company.id,
+            customer_id: String(f.get("customer_id")),
+            professional_id: String(f.get("professional_id")),
+            service_id: service.id,
+            starts_at: startsAt.toISOString(),
+            ends_at: new Date(cursor).toISOString(),
+            booking_group_id: groupId,
+            service_order: index + 1,
+            custom_price: manualPrice ? customCents[index] / 100 : null,
+          };
         });
+        result = await db.from("bookings").insert(rows);
       }
       setBusy(false);
       if (result.error) setMessage(result.error.message);
@@ -1372,14 +1493,8 @@ function CreateDialog({
                 />
               </label>
               <label>
-                Preço (R$)
-                <Input
-                  name="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  defaultValue={editing?.price ?? ""}
-                />
+                Preço
+                <CurrencyInput name="price" defaultValue={editing?.price} />
               </label>
             </>
           )}
@@ -1407,17 +1522,10 @@ function CreateDialog({
                   detail: c.phone || c.email || undefined,
                 }))}
               />
-              <SearchableSelect
-                name="service_id"
-                label="Serviço"
-                required
-                options={services
-                  .filter((s) => s.active)
-                  .map((s) => ({
-                    value: s.id,
-                    label: s.name,
-                    detail: `${s.duration_minutes} min${s.price === null ? "" : ` · ${Number(s.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}`,
-                  }))}
+              <ServicePicker
+                services={services}
+                selected={selectedServices}
+                onChange={setSelectedServices}
               />
               <SearchableSelect
                 name="professional_id"
@@ -1435,6 +1543,7 @@ function CreateDialog({
                     name="date"
                     type="date"
                     required
+                    min={dateKey(new Date(), company.timezone)}
                     defaultValue={
                       initialDate.slice(0, 10) ||
                       dateKey(new Date(), company.timezone)
@@ -1449,6 +1558,23 @@ function CreateDialog({
                   />
                 </label>
               </div>
+              <label className="manual-price-toggle">
+                <input
+                  type="checkbox"
+                  checked={manualPrice}
+                  onChange={(event) => setManualPrice(event.target.checked)}
+                />
+                <span>
+                  <strong>Usar valor avulso</strong>
+                  <small>Substitui o total padrão dos serviços neste agendamento.</small>
+                </span>
+              </label>
+              {manualPrice && (
+                <label>
+                  Valor total do agendamento
+                  <CurrencyInput name="custom_price" required autoFocus />
+                </label>
+              )}
               <small>Horários de 15 em 15 minutos · {company.timezone}</small>
               <p className="muted">
                 Cadastre cliente, serviço e profissional antes de agendar.

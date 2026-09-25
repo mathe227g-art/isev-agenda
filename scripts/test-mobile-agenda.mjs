@@ -5,15 +5,15 @@ import {
   unavailablePeriods,
 } from "../lib/mobile-agenda.mjs";
 assert.deepEqual(mobileWeek("2026-10-01"), [
-  "2026-09-27",
   "2026-09-28",
   "2026-09-29",
   "2026-09-30",
   "2026-10-01",
   "2026-10-02",
   "2026-10-03",
+  "2026-10-04",
 ]);
-assert.equal(mobileWeek("2026-09-27")[0], "2026-09-27");
+assert.equal(mobileWeek("2026-09-27")[3], "2026-09-27");
 assert.equal(minuteLabel(855), "14:15");
 assert.equal(minuteLabel(1440), "24:00");
 const hours = [

@@ -293,6 +293,19 @@ assert.equal(
   0,
 );
 assert.equal((await db.query("select * from bookings")).rows.length, 5);
+const manualId = (
+  await db.query("select id from bookings where status='confirmed' limit 1")
+).rows[0].id;
+await db.query(
+  `update bookings set custom_price=123.45,status='completed' where id='${manualId}'`,
+);
+const manualPrice = (
+  await db.query(
+    `select charged_price,price_source from bookings where id='${manualId}'`,
+  )
+).rows[0];
+assert.equal(Number(manualPrice.charged_price), 123.45);
+assert.equal(manualPrice.price_source, "at_completion");
 const deletionId = (await db.query("select id from bookings limit 1")).rows[0]
   .id;
 await actor(ownerB);

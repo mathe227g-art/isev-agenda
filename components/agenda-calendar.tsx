@@ -6,7 +6,7 @@ import {
   type TimeBlock,
 } from "./mobile-agenda";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, MessageCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import type { Appearance, Booking, Person, Service } from "@/lib/models";
@@ -21,6 +21,8 @@ import {
   movePeriod,
   periodBounds,
 } from "@/lib/planning.mjs";
+import { isFutureLocalSlot } from "@/lib/dates.mjs";
+import { whatsappUrl } from "@/lib/money.mjs";
 const statuses: Record<string, string> = {
   confirmed: "Pendente",
   completed: "Concluído",
@@ -63,9 +65,10 @@ export function AgendaCalendar({
   const [start] = periodBounds(date, view),
     monthStart = periodBounds(date, "Mês")[0],
     gridStart = periodBounds(monthStart, "Semana")[0];
+  const centeredWeekStart = view === "Semana" ? addDays(date, -3) : start;
   const dates = Array.from(
     { length: view === "Mês" ? 42 : view === "Semana" ? 7 : 1 },
-    (_, i) => addDays(view === "Mês" ? gridStart : start, i),
+    (_, i) => addDays(view === "Mês" ? gridStart : centeredWeekStart, i),
   );
   const items = bookings.filter(
     (b) =>
@@ -87,6 +90,15 @@ export function AgendaCalendar({
   const hourHeight = 160,
     gridHeight = (lastHour - firstHour) * hourHeight;
   const current = bookings.find((b) => b.id === detail);
+  const currentGroup = current
+    ? bookings
+        .filter((booking) =>
+          current.booking_group_id
+            ? booking.booking_group_id === current.booking_group_id
+            : booking.id === current.id,
+        )
+        .sort((a, b) => (a.service_order ?? 1) - (b.service_order ?? 1))
+    : [];
   function names(b: Booking) {
     return (
       <>
@@ -294,6 +306,7 @@ export function AgendaCalendar({
                     <button
                       className="month-add"
                       aria-label={`Agendar em ${formatDay(d)}`}
+                      disabled={!isFutureLocalSlot(d + "T09:00", timezone)}
                       onClick={() => onCreate(d + "T09:00")}
                     >
                       <Plus size={13} />
@@ -349,6 +362,7 @@ export function AgendaCalendar({
                               height: hourHeight / 4,
                             }}
                             aria-label={`Novo agendamento ${formatDay(d)} às ${value.slice(-5)}`}
+                            disabled={!isFutureLocalSlot(value, timezone)}
                             onClick={() => onCreate(value)}
                           />
                         );
@@ -400,18 +414,34 @@ export function AgendaCalendar({
           {current && (
             <div className="appointment-details">
               <h3>{current.customers?.name}</h3>
+              {current.customers?.phone && whatsappUrl(current.customers.phone) && (
+                <a
+                  className="whatsapp-link appointment-whatsapp"
+                  href={whatsappUrl(current.customers.phone)!}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <MessageCircle size={16} /> Conversar no WhatsApp
+                </a>
+              )}
               <dl>
-                <dt>Serviço</dt>
+                <dt>{currentGroup.length > 1 ? "Serviços" : "Serviço"}</dt>
                 <dd>
-                  <i
-                    style={{
-                      background: entityColor(
-                        current.service_id,
-                        appearance.service_colors,
-                      ),
-                    }}
-                  />
-                  {current.services?.name}
+                  <span className="appointment-service-list">
+                    {currentGroup.map((booking) => (
+                      <span key={booking.id}>
+                        <i
+                          style={{
+                            background: entityColor(
+                              booking.service_id,
+                              appearance.service_colors,
+                            ),
+                          }}
+                        />
+                        {booking.services?.name}
+                      </span>
+                    ))}
+                  </span>
                 </dd>
                 <dt>Profissional</dt>
                 <dd>

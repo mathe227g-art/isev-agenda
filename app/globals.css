@@ -700,6 +700,26 @@ tr:last-child td {
 .auth-panel label input {
   margin-top: 2px;
 }
+.password-field {
+  position: relative;
+  display: block;
+}
+.password-field input {
+  width: 100%;
+  padding-right: 48px !important;
+}
+.password-field > button {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  width: 38px;
+  min-height: 38px !important;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 8px;
+  color: #62758b;
+}
 .auth-panel button[type="submit"] {
   width: 100%;
   margin-top: 5px;

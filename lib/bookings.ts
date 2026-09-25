@@ -6,7 +6,7 @@ export async function fetchBookings(companyId: string) {
     db
       .from("bookings")
       .select(
-        "*,customers(name),professionals(name),services(name)",
+        "*,customers(name,phone),professionals(name),services(name)",
       )
       .eq("company_id", companyId)
       .order("starts_at", { ascending: false })

@@ -5,6 +5,7 @@ export type Company = {
   timezone: string;
 };
 export type Person = { id: string; name: string; active: boolean };
+export type CustomerSummary = { name: string; phone?: string | null };
 export type Service = {
   id: string;
   name: string;
@@ -20,13 +21,14 @@ export type Booking = {
   customer_id: string;
   professional_id: string;
   service_id: string;
-  customers: { name: string } | null;
+  customers: CustomerSummary | null;
   professionals: { name: string } | null;
   services: { name: string } | null;
   charged_price?: number | null;
   price_source?: "at_completion" | "historical_estimate" | "unpriced" | null;
   booking_group_id?: string | null;
   service_order?: number | null;
+  custom_price?: number | null;
 };
 export type Appearance = {
   primary_color: string;

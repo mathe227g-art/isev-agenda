@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 
 export type SearchOption = { value: string; label: string; detail?: string };
 
@@ -20,6 +20,7 @@ export function SearchableSelect({
 }) {
   const [query, setQuery] = useState("");
   const [value, setValue] = useState(defaultValue);
+  const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
@@ -43,11 +44,23 @@ export function SearchableSelect({
           <button
             type="button"
             aria-label={`Trocar ${label}`}
-            onClick={() => setValue("")}
+            onClick={() => {
+              setValue("");
+              setOpen(true);
+            }}
           >
             <X size={16} />
           </button>
         </div>
+      ) : !open ? (
+        <button
+          type="button"
+          className="search-select-trigger"
+          onClick={() => setOpen(true)}
+        >
+          <span>Selecionar {label.toLocaleLowerCase("pt-BR")}</span>
+          <ChevronDown size={16} />
+        </button>
       ) : (
         <>
           <label className="search-field">
@@ -57,6 +70,7 @@ export function SearchableSelect({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={`Pesquisar ${label.toLocaleLowerCase("pt-BR")}...`}
+              autoFocus
             />
           </label>
           <div className="search-options" role="listbox" aria-label={label}>
@@ -69,6 +83,7 @@ export function SearchableSelect({
                 onClick={() => {
                   setValue(option.value);
                   setQuery("");
+                  setOpen(false);
                 }}
               >
                 <span>
@@ -80,6 +95,16 @@ export function SearchableSelect({
             ))}
             {!visible.length && <p>Nenhum resultado encontrado.</p>}
           </div>
+          <button
+            type="button"
+            className="text-link close-select-list"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+            }}
+          >
+            Fechar lista
+          </button>
         </>
       )}
     </fieldset>

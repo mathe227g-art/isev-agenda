@@ -282,6 +282,9 @@ export function MobileAgenda({
                     {clockTime(b.starts_at, timezone)}–
                     {clockTime(b.ends_at, timezone)}
                   </strong>
+                  {b.booking_source === "public_link" && (
+                    <span className="booking-origin">Agendado via link</span>
+                  )}
                   <span className="mobile-service">
                     {b.customers?.name || "Cliente"} ·{" "}
                     <i

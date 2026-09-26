@@ -29,6 +29,7 @@ export type Booking = {
   booking_group_id?: string | null;
   service_order?: number | null;
   custom_price?: number | null;
+  booking_source?: "internal" | "public_link" | null;
 };
 export type Appearance = {
   primary_color: string;

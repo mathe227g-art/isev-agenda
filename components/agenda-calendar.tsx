@@ -102,6 +102,9 @@ export function AgendaCalendar({
   function names(b: Booking) {
     return (
       <>
+        {b.booking_source === "public_link" && (
+          <span className="booking-origin">Agendado via link</span>
+        )}
         <span className="event-entity">
           <i
             style={{
@@ -467,6 +470,12 @@ export function AgendaCalendar({
                 <dd>
                   {clockTime(current.starts_at, timezone)} —{" "}
                   {clockTime(current.ends_at, timezone)}
+                </dd>
+                <dt>Origem</dt>
+                <dd>
+                  {current.booking_source === "public_link"
+                    ? "Agendado via link"
+                    : "Agendado internamente"}
                 </dd>
               </dl>
               <label>

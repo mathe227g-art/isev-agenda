@@ -806,6 +806,22 @@ html[data-company-theme="dark"] .status-no_show {
   color: var(--text-muted);
   flex: none;
 }
+.booking-origin {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  color: var(--brand-readable);
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.calendar-event .booking-origin,
+.mobile-booking .booking-origin {
+  margin-bottom: 2px;
+}
 .month-add {
   position: absolute;
   right: 7px;

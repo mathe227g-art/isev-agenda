@@ -4,11 +4,13 @@ export function CompanyIdentity({
   logo,
   large = false,
   compact = false,
+  showLabel = true,
 }: {
   name: string;
   logo: string | null;
   large?: boolean;
   compact?: boolean;
+  showLabel?: boolean;
 }) {
   return (
     <div
@@ -28,7 +30,9 @@ export function CompanyIdentity({
         </span>
       )}
       <div>
-        <small>{compact ? "Conta da empresa" : "SUA EMPRESA"}</small>
+        {showLabel && (
+          <small>{compact ? "Conta da empresa" : "SUA EMPRESA"}</small>
+        )}
         <strong>{name}</strong>
       </div>
     </div>

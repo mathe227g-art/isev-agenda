@@ -29,11 +29,9 @@ Configure na Vercel conforme .env.example:
 - NEXT_PUBLIC_SUPABASE_URL
 - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 - APP_ORIGIN=https://isevagenda.vercel.app
-- NEXT_PUBLIC_TURNSTILE_SITE_KEY
-- TURNSTILE_SECRET_KEY
 - SUPABASE_SECRET_KEY
 
-As duas chaves secretas são somente do servidor: nunca use prefixo NEXT_PUBLIC_ para elas nem envie seus valores ao GitHub. Configure o Turnstile para o domínio publicado. Faça um novo deploy após configurar as variáveis.
+`SUPABASE_SECRET_KEY` é somente do servidor: nunca use prefixo `NEXT_PUBLIC_` nem envie seu valor ao GitHub. O endpoint público usa Vercel BotID, sem chave externa e sem desafio visível. Faça um novo deploy após configurar a variável.
 
 Sem essas configurações, a reserva pública falha de forma segura. O painel autenticado não usa essa rota pública para criar agendamentos.
 
@@ -41,7 +39,7 @@ Sem essas configurações, a reserva pública falha de forma segura. O painel au
 
 Os SQLs foram mantidos para referência e manutenção. Não reaplique todos indiscriminadamente no banco já instalado. O pacote contém código, não um backup dos dados do Supabase.
 
-Antes de entregar ao cliente, conclua CAPTCHA, verifique a liberação do Google para as contas dos clientes e valide os fluxos de agendamento e isolamento de contas no ambiente publicado.
+Antes de entregar ao cliente, verifique a liberação do Google para as contas dos clientes e valide os fluxos de agendamento, BotID e isolamento de contas no ambiente publicado.
 
 ## Atualização v9 — agenda e disponibilidade
 

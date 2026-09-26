@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { BookingChallenge } from "@/components/booking-challenge";
 import { db } from "@/lib/supabase";
 import { CompanyIdentity } from "@/components/company-identity";
 import { defaultAppearance, type Appearance } from "@/lib/models";
@@ -63,8 +62,6 @@ export default function BookingPage() {
     [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ id: string; token: string } | null>(null),
     [cancelled, setCancelled] = useState(false);
-  const [challenge, setChallenge] = useState("");
-  const [challengeVersion, setChallengeVersion] = useState(0);
   const [serviceQuery, setServiceQuery] = useState("");
   const [personQuery, setPersonQuery] = useState("");
   const [appearance, setAppearance] = useState<Appearance>(defaultAppearance);
@@ -135,7 +132,6 @@ export default function BookingPage() {
           p_name: String(f.get("name")),
           p_phone: String(f.get("phone")),
           p_email: String(f.get("email")) || null,
-          token: challenge,
         }),
       });
       const data = await response.json();
@@ -150,8 +146,6 @@ export default function BookingPage() {
       );
     } finally {
       setBusy(false);
-      setChallenge("");
-      setChallengeVersion((v) => v + 1);
     }
   }
 
@@ -185,6 +179,7 @@ export default function BookingPage() {
                 name={catalog.company.name}
                 logo={appearance.logo_data_url}
                 large
+                showLabel={false}
               />
             )}
           </div>
@@ -485,12 +480,8 @@ export default function BookingPage() {
                           {error}
                         </p>
                       )}
-                      <BookingChallenge
-                        key={challengeVersion}
-                        onToken={setChallenge}
-                      />
                       <Button
-                        disabled={!slot || busy || fetching || !challenge}
+                        disabled={!slot || busy || fetching}
                         size="lg"
                       >
                         {busy ? "Confirmando..." : "Confirmar agendamento"}

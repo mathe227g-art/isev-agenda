@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { handlePublicBooking } from "../lib/public-booking.mjs";
 const env = {
   APP_ORIGIN: "https://agenda.example",
-  TURNSTILE_SECRET_KEY: "test-secret",
   SUPABASE_SECRET_KEY: "sb_secret_test",
   NEXT_PUBLIC_SUPABASE_URL: "https://db.example",
 };
@@ -17,7 +16,6 @@ const body = {
   p_name: "Cliente Teste",
   p_phone: "(11) 99999-9999",
   p_email: null,
-  token: "test-token",
 };
 const req = (data = body, origin = env.APP_ORIGIN) =>
   new Request(env.APP_ORIGIN + "/api/book", {
@@ -27,12 +25,6 @@ const req = (data = body, origin = env.APP_ORIGIN) =>
   });
 let writes = 0;
 const mock = async (url, options) => {
-  if (String(url).includes("siteverify"))
-    return Response.json({
-      success: true,
-      hostname: "agenda.example",
-      action: "booking",
-    });
   writes++;
   const args = JSON.parse(options.body);
   assert.equal(args.p_phone, "11999999999");
@@ -76,17 +68,6 @@ assert.equal(
   ).status,
   400,
 );
-for (const result of [
-  { success: false },
-  { success: true, hostname: "evil.example", action: "booking" },
-  { success: true, hostname: "agenda.example", action: "login" },
-]) {
-  assert.equal(
-    (await handlePublicBooking(req(), env, async () => Response.json(result)))
-      .status,
-    403,
-  );
-}
 assert.equal(writes, 0);
 const ok = await handlePublicBooking(req(), env, mock);
 assert.equal(ok.status, 200);
@@ -97,13 +78,11 @@ assert.deepEqual(await ok.json(), {
   booking_ids: ["booking", "booking-2"],
   cancel_token: "opaque-token",
 });
-const limited = await handlePublicBooking(req(), env, async (url, options) =>
-  String(url).includes("siteverify")
-    ? mock(url, options)
-    : Response.json(
-        { code: "P0429", message: "private database details" },
-        { status: 400 },
-      ),
+const limited = await handlePublicBooking(req(), env, async () =>
+  Response.json(
+    { code: "P0429", message: "private database details" },
+    { status: 400 },
+  ),
 );
 assert.equal(limited.status, 429);
 assert(!(await limited.text()).includes("private"));
@@ -116,5 +95,5 @@ assert.equal(
   503,
 );
 console.log(
-  "API: origem, limites de payload, validação, CAPTCHA/domínio/ação, falha fechada, erros e sucesso validados.",
+  "API: origem, limites de payload, validação, credencial privada, erros e sucesso validados; BotID protege a rota no servidor.",
 );

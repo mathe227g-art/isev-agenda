@@ -1359,7 +1359,7 @@ function CreateDialog({
       } else {
         if (!quarterHours.includes(String(f.get("time"))))
           throw new Error("Escolha um horário de 15 em 15 minutos.");
-        if (!selectedServices.length)
+        if (!manualPrice && !selectedServices.length)
           throw new Error("Escolha pelo menos um serviço.");
         if (!String(f.get("customer_id")))
           throw new Error("Escolha um cliente.");
@@ -1371,23 +1371,64 @@ function CreateDialog({
         );
         if (!isFutureLocalSlot(`${f.get("date")}T${f.get("time")}`, company.timezone))
           throw new Error("Escolha um dia e horário que ainda não passaram.");
-        const chosen = selectedServices.map((id) =>
-          services.find((service) => service.id === id),
-        );
-        if (chosen.some((service) => !service?.active))
+        const chosen = manualPrice
+          ? []
+          : selectedServices.map((id) =>
+              services.find((service) => service.id === id),
+            );
+        if (!manualPrice && chosen.some((service) => !service?.active))
           throw new Error("Um dos serviços escolhidos não está mais disponível.");
         const totalValue = manualPrice ? Number(f.get("custom_price")) : null;
         if (manualPrice && (!Number.isFinite(totalValue) || totalValue! < 0))
           throw new Error("Digite um valor avulso válido.");
+        const customName = String(f.get("custom_service_name") || "").trim();
+        const customDuration = Number(f.get("custom_duration"));
+        if (manualPrice && (customName.length < 2 || customName.length > 120))
+          throw new Error("Digite uma descrição para o atendimento avulso.");
+        if (
+          manualPrice &&
+          (!Number.isInteger(customDuration) ||
+            customDuration < 5 ||
+            customDuration > 1440)
+        )
+          throw new Error("Escolha uma duração válida para o atendimento avulso.");
         const customCents = manualPrice
           ? allocateCents(
               Math.round(totalValue! * 100),
-              chosen as Service[],
+              [{ duration_minutes: customDuration }] as Service[],
             )
           : [];
         const groupId = crypto.randomUUID();
         let cursor = start.getTime();
-        const rows = (chosen as Service[]).map((service, index) => {
+        const rows: Array<{
+          company_id: string;
+          customer_id: string;
+          professional_id: string;
+          service_id: string | null;
+          starts_at: string;
+          ends_at: string;
+          booking_group_id: string;
+          service_order: number;
+          custom_price: number | null;
+          custom_service_name: string | null;
+        }> = manualPrice
+          ? [
+              {
+                company_id: company.id,
+                customer_id: String(f.get("customer_id")),
+                professional_id: String(f.get("professional_id")),
+                service_id: null,
+                starts_at: start.toISOString(),
+                ends_at: new Date(
+                  start.getTime() + customDuration * 60000,
+                ).toISOString(),
+                booking_group_id: groupId,
+                service_order: 1,
+                custom_price: customCents[0] / 100,
+                custom_service_name: customName,
+              },
+            ]
+          : (chosen as Service[]).map((service, index) => {
           const startsAt = new Date(cursor);
           cursor += service.duration_minutes * 60000;
           return {
@@ -1399,9 +1440,10 @@ function CreateDialog({
             ends_at: new Date(cursor).toISOString(),
             booking_group_id: groupId,
             service_order: index + 1,
-            custom_price: manualPrice ? customCents[index] / 100 : null,
+            custom_price: null,
+            custom_service_name: null,
           };
-        });
+          });
         result = await db.from("bookings").insert(rows);
       }
       setBusy(false);
@@ -1428,6 +1470,8 @@ function CreateDialog({
         if (!open && !busy) {
           setKind(null);
           setMessage("");
+          setManualPrice(false);
+          setSelectedServices([]);
         }
       }}
     >
@@ -1522,11 +1566,58 @@ function CreateDialog({
                   detail: c.phone || c.email || undefined,
                 }))}
               />
-              <ServicePicker
-                services={services}
-                selected={selectedServices}
-                onChange={setSelectedServices}
-              />
+              <label className="manual-price-toggle">
+                <input
+                  type="checkbox"
+                  checked={manualPrice}
+                  onChange={(event) => {
+                    setManualPrice(event.target.checked);
+                    if (event.target.checked) setSelectedServices([]);
+                  }}
+                />
+                <span>
+                  <strong>Atendimento com valor avulso</strong>
+                  <small>Use quando o atendimento não corresponde a um serviço cadastrado.</small>
+                </span>
+              </label>
+              {manualPrice ? (
+                <>
+                  <label>
+                    Descrição do atendimento
+                    <Input
+                      name="custom_service_name"
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      placeholder="Ex.: Atendimento especial"
+                    />
+                  </label>
+                  <div className="two-fields">
+                    <label>
+                      Duração em minutos
+                      <Input
+                        name="custom_duration"
+                        type="number"
+                        min="5"
+                        max="1440"
+                        step="5"
+                        defaultValue="30"
+                        required
+                      />
+                    </label>
+                    <label>
+                      Valor do atendimento
+                      <CurrencyInput name="custom_price" required />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <ServicePicker
+                  services={services}
+                  selected={selectedServices}
+                  onChange={setSelectedServices}
+                />
+              )}
               <SearchableSelect
                 name="professional_id"
                 label="Profissional"
@@ -1558,26 +1649,10 @@ function CreateDialog({
                   />
                 </label>
               </div>
-              <label className="manual-price-toggle">
-                <input
-                  type="checkbox"
-                  checked={manualPrice}
-                  onChange={(event) => setManualPrice(event.target.checked)}
-                />
-                <span>
-                  <strong>Usar valor avulso</strong>
-                  <small>Substitui o total padrão dos serviços neste agendamento.</small>
-                </span>
-              </label>
-              {manualPrice && (
-                <label>
-                  Valor total do agendamento
-                  <CurrencyInput name="custom_price" required autoFocus />
-                </label>
-              )}
               <small>Horários de 15 em 15 minutos · {company.timezone}</small>
               <p className="muted">
-                Cadastre cliente, serviço e profissional antes de agendar.
+                Cadastre cliente e profissional antes de agendar.
+                {!manualPrice && " Para usar um serviço, cadastre-o primeiro."}
               </p>
             </>
           )}

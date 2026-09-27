@@ -20,7 +20,7 @@ export type Booking = {
   status: string;
   customer_id: string;
   professional_id: string;
-  service_id: string;
+  service_id: string | null;
   customers: CustomerSummary | null;
   professionals: { name: string } | null;
   services: { name: string } | null;
@@ -29,6 +29,7 @@ export type Booking = {
   booking_group_id?: string | null;
   service_order?: number | null;
   custom_price?: number | null;
+  custom_service_name?: string | null;
   booking_source?: "internal" | "public_link" | null;
 };
 export type Appearance = {

@@ -276,7 +276,7 @@ export function MobileAgenda({
                     width: `calc(${100 / lanes}% - 3px)`,
                   }}
                   onClick={() => onOpen(b.id)}
-                  aria-label={`${clockTime(b.starts_at, timezone)}, ${b.customers?.name}, ${b.services?.name}, ${labels[b.status]}`}
+                  aria-label={`${clockTime(b.starts_at, timezone)}, ${b.customers?.name}, ${b.services?.name || b.custom_service_name || "Atendimento avulso"}, ${labels[b.status]}`}
                 >
                   <strong>
                     {clockTime(b.starts_at, timezone)}–
@@ -290,12 +290,14 @@ export function MobileAgenda({
                     <i
                       style={{
                         background: entityColor(
-                          b.service_id,
+                          b.service_id || "custom",
                           appearance.service_colors,
                         ),
                       }}
                     />
-                    {b.services?.name || "Serviço"}
+                    {b.services?.name ||
+                      b.custom_service_name ||
+                      "Atendimento avulso"}
                   </span>
                 </button>
               ))}

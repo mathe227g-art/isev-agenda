@@ -77,7 +77,11 @@ export function History({
                   <p>{first.professionals?.name || "Profissional"}</p>
                   <ul>
                     {items.map((item) => (
-                      <li key={item.id}>{item.services?.name || "Serviço"}</li>
+                      <li key={item.id}>
+                        {item.services?.name ||
+                          item.custom_service_name ||
+                          "Atendimento avulso"}
+                      </li>
                     ))}
                   </ul>
                 </div>

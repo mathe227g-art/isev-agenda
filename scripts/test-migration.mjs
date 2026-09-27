@@ -17,15 +17,20 @@ insert into services values('00000000-0000-0000-0000-000000000021','00000000-000
 insert into bookings values('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000021','completed');`);
 const sql=readFileSync(new URL('../supabase/migrations/202609230004_branding_finance.sql',import.meta.url),'utf8');
 await db.exec(sql);await db.exec(sql);
+const customPriceSql=readFileSync(new URL('../supabase/migrations/202609250001_booking_custom_price.sql',import.meta.url),'utf8');
+const standaloneSql=readFileSync(new URL('../supabase/migrations/202609270001_standalone_custom_booking.sql',import.meta.url),'utf8');
+await db.exec(customPriceSql);await db.exec(standaloneSql);await db.exec(standaloneSql);
 let row=(await db.query('select charged_price,price_source from bookings')).rows[0];assert.equal(row.price_source,'historical_estimate');assert.equal(Number(row.charged_price),50);
 await db.exec(`insert into bookings values('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000021','confirmed',999,'at_completion');update bookings set status='completed' where id='00000000-0000-0000-0000-000000000032';update services set price=100;update bookings set status='completed',charged_price=888;`);
 const rows=(await db.query('select charged_price,price_source from bookings')).rows;assert(rows.every(r=>Number(r.charged_price)===50));assert(rows.some(r=>r.price_source==='at_completion'));
+await db.exec(`insert into bookings(id,company_id,service_id,status,custom_price,custom_service_name) values('00000000-0000-0000-0000-000000000033','00000000-0000-0000-0000-000000000001',null,'completed',115.50,'Atendimento especial')`);
+row=(await db.query("select service_id,custom_service_name,charged_price,price_source from bookings where id='00000000-0000-0000-0000-000000000033'")).rows[0];assert.equal(row.service_id,null);assert.equal(row.custom_service_name,'Atendimento especial');assert.equal(Number(row.charged_price),115.5);assert.equal(row.price_source,'at_completion');
 await db.exec(`set test.actor='00000000-0000-0000-0000-000000000011';set role authenticated;insert into company_appearance(company_id,primary_color,theme) values('00000000-0000-0000-0000-000000000001','#aa00ff','dark');select set_agenda_color('00000000-0000-0000-0000-000000000001','service','00000000-0000-0000-0000-000000000021','#fefefe');`);
 await assert.rejects(db.exec(`insert into company_appearance(company_id) values('00000000-0000-0000-0000-000000000002')`),/row-level security/);
 await assert.rejects(db.exec(`select set_agenda_color('00000000-0000-0000-0000-000000000002','service','00000000-0000-0000-0000-000000000021','#ff00ff')`),/Acesso negado/);
 await db.exec('reset role;set role anon');
 const publicData=(await db.query("select booking_branding('alpha') as data")).rows[0].data;assert.equal(publicData.theme,'dark');assert.equal(publicData.primary_color,'#aa00ff');assert.equal(publicData.service_colors,undefined);
 await assert.rejects(db.query('select * from company_appearance'),/permission denied/);
-await db.close();console.log('SQL 004 validado: reaplicação, preço histórico, captura, proteção de valores, RLS multiempresa, cores e leitura pública limitada.');
+await db.close();console.log('SQL financeiro validado: reaplicação, preço histórico, atendimento avulso, proteção de valores, RLS multiempresa, cores e leitura pública limitada.');
 
 

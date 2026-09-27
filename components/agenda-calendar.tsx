@@ -119,10 +119,13 @@ export function AgendaCalendar({
         <span className="event-entity">
           <i
             style={{
-              background: entityColor(b.service_id, appearance.service_colors),
+              background: entityColor(
+                b.service_id || "custom",
+                appearance.service_colors,
+              ),
             }}
           />
-          {b.services?.name || "Serviço"}
+          {b.services?.name || b.custom_service_name || "Atendimento avulso"}
         </span>
       </>
     );
@@ -290,7 +293,7 @@ export function AgendaCalendar({
                         key={b.id}
                         className={`month-booking calendar-status-${b.status}`}
                         onClick={() => openDetail(b.id)}
-                        title={`${clockTime(b.starts_at, timezone)} · ${b.customers?.name} · ${b.services?.name} · ${b.professionals?.name}`}
+                        title={`${clockTime(b.starts_at, timezone)} · ${b.customers?.name} · ${b.services?.name || b.custom_service_name || "Atendimento avulso"} · ${b.professionals?.name}`}
                       >
                         {names(b)}
                       </button>
@@ -386,8 +389,8 @@ export function AgendaCalendar({
                             left: `calc(${(lane / lanes) * 100}% + 3px)`,
                             width: `calc(${100 / lanes}% - 6px)`,
                           }}
-                          aria-label={`${clockTime(b.starts_at, timezone)} ${b.customers?.name}, ${b.services?.name}, ${b.professionals?.name}, ${statuses[b.status]}`}
-                          title={`${clockTime(b.starts_at, timezone)}–${clockTime(b.ends_at, timezone)} · ${b.customers?.name} · ${b.services?.name} · ${b.professionals?.name} · ${statuses[b.status]}`}
+                          aria-label={`${clockTime(b.starts_at, timezone)} ${b.customers?.name}, ${b.services?.name || b.custom_service_name || "Atendimento avulso"}, ${b.professionals?.name}, ${statuses[b.status]}`}
+                          title={`${clockTime(b.starts_at, timezone)}–${clockTime(b.ends_at, timezone)} · ${b.customers?.name} · ${b.services?.name || b.custom_service_name || "Atendimento avulso"} · ${b.professionals?.name} · ${statuses[b.status]}`}
                         >
                           {names(b)}
                         </button>
@@ -436,12 +439,14 @@ export function AgendaCalendar({
                         <i
                           style={{
                             background: entityColor(
-                              booking.service_id,
+                              booking.service_id || "custom",
                               appearance.service_colors,
                             ),
                           }}
                         />
-                        {booking.services?.name}
+                        {booking.services?.name ||
+                          booking.custom_service_name ||
+                          "Atendimento avulso"}
                       </span>
                     ))}
                   </span>

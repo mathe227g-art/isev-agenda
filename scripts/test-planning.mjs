@@ -14,6 +14,8 @@ assert.equal(summarizeRevenue([fixed],[{id:'cut',price:100}],day,'Mês',zone).to
 const mix=summarizeRevenue([fixed,booking('2',{service_id:'none'}),booking('3',{service_id:'free'})],services,day,'Dia',zone);
 assert.equal(mix.count,3);assert.equal(mix.missing,1);assert.equal(mix.totalCents,5000);
 assert.equal(summarizeRevenue([booking('1',{charged_price:null,price_source:'unpriced'})],services,day,'Dia',zone).missing,1);
+const custom=summarizeRevenue([booking('custom',{service_id:null,custom_service_name:'Atendimento especial',charged_price:115.5,price_source:'at_completion'})],services,day,'Dia',zone);
+assert.equal(custom.totalCents,11550);assert.equal(custom.groups[0].name,'Atendimento especial');
 assert.equal(summarizeRevenue([booking('1',{starts_at:'2026-09-24T03:00:00Z'})],services,day,'Dia',zone).count,0);
 assert.equal(summarizeRevenue([booking('1',{starts_at:'2026-09-24T02:59:00Z'})],services,day,'Dia',zone).count,1);
 const lanes=calendarLanes([{start:600,end:660},{start:610,end:630},{start:630,end:680},{start:700,end:730}]);
@@ -24,4 +26,4 @@ assert.deepEqual(daySegments([midnight],'2026-09-24',zone).map(x=>[x.start,x.end
 assert.equal(daySegments([booking('1',{starts_at:'2026-09-24T02:00:00Z',ends_at:'2026-09-24T03:00:00Z'})],'2026-09-24',zone).length,0);
 assert.equal(foreground('#ffffff'),'#081b30');assert.equal(foreground('#000000'),'#ffffff');
 assert.equal(entityColor('cut',{cut:'#ff00aa'}),'#ff00aa');
-console.log('20 verificações de calendário, cores e financeiro passaram.');
+console.log('22 verificações de calendário, cores e financeiro passaram.');

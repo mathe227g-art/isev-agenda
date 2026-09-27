@@ -13,6 +13,7 @@
     var(--brand-color) 65%,
     var(--text-strong)
   );
+  --brand-on-dark: color-mix(in srgb, var(--brand-color) 35%, #fff);
 }
 html[data-company-theme] {
   --primary: var(--brand-color);
@@ -102,12 +103,26 @@ html[data-company-theme] .public-heading {
 }
 html[data-company-theme] .welcome-banner button {
   background: #fff;
-  color: #152b42;
+  color: var(--brand-readable);
+}
+html[data-company-theme] .welcome-banner:after {
+  border-color: color-mix(in srgb, var(--brand-on-dark) 32%, transparent);
+}
+html[data-company-theme] .welcome-banner .banner-tag,
+html[data-company-theme] .welcome-banner p,
+html[data-company-theme] .banner-calendar {
+  color: var(--brand-on-dark);
+}
+html[data-company-theme] .welcome-banner .online-dot {
+  background: var(--brand-on-dark);
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--brand-on-dark) 18%, transparent);
 }
 html[data-company-theme] .text-link,
 html[data-company-theme] .eyebrow,
 html[data-company-theme] .contact-title,
-html[data-company-theme] .contact-title svg {
+html[data-company-theme] .contact-title svg,
+html[data-company-theme] .link-panel .panel-heading svg {
   color: var(--brand-readable);
 }
 html[data-company-theme] .stat-icon,
@@ -193,15 +208,6 @@ html[data-company-theme] .slots button.selected {
   background: var(--brand-color);
   color: var(--brand-ink);
   border-color: var(--brand-color);
-}
-html[data-company-theme="dark"] .brand-word strong {
-  color: #edf3fc;
-}
-html[data-company-theme="dark"] .brand-word strong i {
-  color: #35aeff;
-}
-html[data-company-theme="dark"] .brand-word small {
-  color: var(--text-muted);
 }
 html[data-company-theme="dark"] .form-message,
 html[data-company-theme="dark"] .error-box {
